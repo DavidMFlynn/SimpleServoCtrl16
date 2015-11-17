@@ -85,6 +85,8 @@
 ;
 	constant	oldCode=0
 	constant	useRS232=0
+	constant	useI2CISR=1
+	constant	useI2CWDT=1
 ;
 #Define	_C	STATUS,C
 #Define	_Z	STATUS,Z
@@ -171,44 +173,35 @@ DebounceTime	EQU	d'10'
 ;================================================================================================
 ;  Bank0 Ram 020h-06Fh 80 Bytes
 ;
-Bank0_Vars	udata	0x20 
+	cblock	0x20 
 ;
-LED_Time	RES	1
-lastc	RES	1	;part of tickcount timmer
-tickcount	RES	1	;Timer tick count
+	LED_Time
+	lastc		;part of tickcount timmer
+	tickcount		;Timer tick count
 ;
-StatLED_Time	RES	1
-Stat_Count	RES	1
-;
-	if useRS232
-TXByte	RES	1	;Next byte to send
-RXByte	RES	1	;Last byte received
-WorkingRXByte	RES	1
-RS232Flags	RES	1
-#Define	DataSentFlag	RS232Flags,0
-#Define	DataReceivedFlag	RS232Flags,1
-	endif
+	StatLED_Time
+	Stat_Count
 ;
 ;
 ;
-EEAddrTemp	RES	1	;EEProm address to read or write
-EEDataTemp	RES	1	;Data to be writen to EEProm
+	EEAddrTemp		;EEProm address to read or write
+	EEDataTemp		;Data to be writen to EEProm
 ;
 ;
-Timer1Lo	RES	1	;1st 16 bit timer
-Timer1Hi	RES	1	; one second RX timeiout
-;
-Timer2Lo	RES	1	;2nd 16 bit timer
-Timer2Hi	RES	1	;
-;
-Timer3Lo	RES	1	;3rd 16 bit timer
-Timer3Hi	RES	1	;GP wait timer
-;
-Timer4Lo	RES	1	;4th 16 bit timer
-Timer4Hi	RES	1	; debounce timer
+	Timer1Lo		;1st 16 bit timer
+	Timer1Hi		; one second RX timeiout
+	Timer2Lo		;2nd 16 bit timer
+	Timer2Hi		;
+	Timer3Lo		;3rd 16 bit timer
+	Timer3Hi		;GP wait timer
+	Timer4Lo		;4th 16 bit timer
+	Timer4Hi		; debounce timer
 ;
 ;
-SysFlags	RES	1
+	SysFlags
+;
+	endc
+;
 #Define	SW1_Flag	SysFlags,0
 #Define	SW2_Flag	SysFlags,1
 #Define	SW3_Flag	SysFlags,2
@@ -218,6 +211,9 @@ SysFlags	RES	1
 ;#Define	FirstRAMParam	MinSpdLo
 ;#Define	LastRAMParam	SysFlags
 ;
+	if useI2CWDT
+TimerI2C	EQU	Timer1Lo
+	endif
 ;
 ;================================================================================================
 ;  Bank2 Ram 120h-16Fh 80 Bytes
@@ -228,17 +224,12 @@ I2C_ADDRESS	EQU	0x30	; Slave address
 RX_ELEMENTS	EQU	.32	; number of allowable array elements, in this case 16
 TX_ELEMENTS	EQU	.8	; Status nibble for each servo
 I2C_TX_Init_Val	EQU	0xAA	; value to load into transmit array to send to master
-I2C_RX_Init_Val	EQU	0xAA	; value to load into received data array
+I2C_RX_Init_Val	EQU	0xAB	; value to load into received data array
 ;
 Bank2_Vars	udata	0x120   
 I2C_ARRAY_TX	res	RX_ELEMENTS	; array to transmit to master
 I2C_ARRAY_RX 	res	TX_ELEMENTS 	; array to receive from master
 ;
-;ContigMem	udata	0x2100
-;BigBuffer	EQU	0x2100
-	cblock	0x2100
-	BigBuffer:0x80
-	endc
 ;
 	include <ServoLib.h>
 ;
@@ -267,10 +258,11 @@ I2C_ARRAY_RX 	res	TX_ELEMENTS 	; array to receive from master
 	endc
 ;
 #Define	INDEX_I2C	Param70	;I2C Data Pointer
-#Define	GFlags	Param71
-#Define	I2C_TXLocked	Param71,0	; Set/cleared by ISR, data is being sent
-#Define	I2C_RXLocked	Param71,1	; Set/cleared by ISR, data is being received
-#Define	I2C_NewRXData	Param71,2	; Set by ISR, The new data is here!
+#Define	TX_DataSize	Param71
+#Define	GFlags	Param72
+#Define	I2C_TXLocked	Param72,0	; Set/cleared by ISR, data is being sent
+#Define	I2C_RXLocked	Param72,1	; Set/cleared by ISR, data is being received
+#Define	I2C_NewRXData	Param72,2	; Set by ISR, The new data is here!
 ;
 ;=========================================================================================
 ;Conditions
@@ -381,30 +373,21 @@ SystemBlink_end
 ;=========================================================================================
 ;-----------------------------------------------------------------------------------------
 ; I2C Com
-IRQ_4	MOVLB	0x00
-	btfss 	PIR1,SSP1IF 	; Is this a SSP interrupt?
-	goto 	IRQ_4_End 	; if not, bus collision int occurred
-	banksel	SSP1STAT						
-	btfsc	SSP1STAT,R_NOT_W	; is it a master read:
-	goto	I2C_READ	; if so go here
-	goto	I2C_WRITE	; if not, go here
-I2C_READ_Return:
-I2C_WRITE_Return	movlb	0x00
-	bcf 	PIR1,SSP1IF	; clear the SSP interrupt flag
-IRQ_4_End
+	MOVLB	0x00
+	btfsc	PIR1,SSP1IF 	; Is this a SSP interrupt?
+	call	I2C_ISR
+	movlb	0
 ;-----------------------------------------------------------------------------------------
 ; I2C Bus Collision
 IRQ_5	MOVLB	0x00
 	btfss	PIR2,BCL1IF
 	goto	IRQ_5_End
-	banksel	SSPBUF						
-	clrf	SSPBUF	; clear the SSP buffer
-	movlb	0x00	;banksel PIR2
-	bcf	PIR2,BCL1IF	; clear the SSP interrupt flag	
-	banksel	SSPCON1
-	bsf	SSPCON1,CKP	; release clock stretch
+
+	banksel	SSP1BUF						
+	movf	SSP1BUF,w	; clear the SSP buffer
+	bsf	SSP1CON1,CKP	; release clock stretch
 	movlb	0x00
-;
+	bcf	PIR2,BCL1IF	; clear the SSP interrupt flag
 IRQ_5_End:
 ;
 ;--------------------------------------------------------------------
@@ -473,17 +456,6 @@ start	MOVLB	0x01	; select bank 1
 ; clear memory to zero
 	CALL	ClearRam
 ;-----------------------
-; big buffer test
-	MOVLW	LOW BigBuffer
-	MOVWF	FSR1L
-	MOVLW	HIGH BigBuffer
-	MOVWF	FSR1H
-	MOVLW	0x22
-	MOVWF	INDF1
-	SUBWF	INDF1,W
-	SKPZ
-	GOTO	$
-;-----------------------
 ; Setup CCP1 & CCP2
 	MOVLB	0x02	; bank 2
 	BSF	APFCON0,CCP2SEL
@@ -533,12 +505,13 @@ start	MOVLB	0x01	; select bank 1
 ;=========================================================================================
 MainLoop	CLRWDT
 ;
-;	CALL	I2C_DataInturp
+	CALL	I2C_Idle
+	CALL	I2C_DataInturp
 ;
-;	CALL	I2C_DataSender
+	CALL	I2C_DataSender
 ;
 	CALL	IdleServos
-	CALL	TestServoLib
+	CALL	TestServoLib	;tc
 ;
 	MOVLB	0x00
 	BTFSC	SW2_Flag

@@ -1,4 +1,23 @@
 ;====================================================================================================
+;
+;    Filename:      ServoLib.inc
+;    Date:          11/16/2015
+;    File Version:  1.0d1
+;    
+;    Author:        David M. Flynn
+;    Company:       Oxford V.U.E., Inc.
+;    E-Mail:        dflynn@oxfordvue.com
+;    Web Site:      http://www.oxfordvue.com/
+;
+;====================================================================================================
+;    Low level routines for SimpleServo16 PCB
+;
+;
+;    History:
+;
+; 1.0d1   11/16/2015	First rev'd version.
+;
+;====================================================================================================
 ; PIC16F1847 on SimpleServo16 PCB
 ;
 ;   Pin 1 (RA2/AN2) Address A2 (output)
@@ -859,7 +878,6 @@ StartMotion	ANDLW	0x0F
 ;
 ;=========================================================================================
 ; Servo test
-;	if oldCode
 TestServoLib	MOVLB	0x05
 	BTFSS	ServoFlags,InPositionFlag0_7 ;Servo 0 in position?
 	GOTO	S_Text_End	; No
@@ -913,9 +931,7 @@ STest3_1	MOVLW	HIGH d'2200'	;1900 uS
 	CALL	StartMotion
 ;
 S_Text_End3:
-;	endif
 ;
-;	if oldCode
 ; Servo test2
 	MOVLB	0x05
 	BTFSS	ServoFlags,InPositionFlag8_15 ;Servo 8 in position?
@@ -970,7 +986,6 @@ STest4_1	MOVLW	HIGH d'2200'	;1900 uS
 	CALL	StartMotion
 ;
 S_Text_End4:
-;	endif
 	RETURN
 ;
 ;=========================================================================================
