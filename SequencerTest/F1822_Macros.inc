@@ -1,10 +1,10 @@
-	subtitle	"F1847 Macros"
+	subtitle	"F1822 Macros"
 	page
 ;===================================================================================
 ;
-;  FileName: F1847 Macros.asm
-;  Date: 12/31/2015
-;  File Version: 1.3.2
+;  FileName: F1822 Macros.inc
+;  Date: 4/23/2015
+;  File Version: 1.3.3
 ;  
 ;  Author: David M. Flynn
 ;  Company: Oxford V.U.E., Inc.
@@ -12,12 +12,13 @@
 ;============================================================================================
 ; Notes:
 ;
-;  These are generic macros for the 16F1847
+;  These are generic macros for the 12F1822
 ;
 ;============================================================================================
 ; Revision History
 ;
-; 1.3.2  12/31/2015	Added LOADFSR0A, LOADFSR1A
+; 1.3.3  4/23/2015	Removed old comments
+; 1.3.2  9/4/2014	Modified for 12F1822
 ; 1.3.1  11/16/13	Modified for 16F1847
 ; 1.3    4/28/04	Added mBankISel
 ; 1.2.4  5/19/03	Added BNE, BEQ
@@ -39,30 +40,9 @@
 ;============================================================================================
 ;TestTimerIsZero	(0),(0) pass Timer1Lo,Timer2Lo, etc. returns STATUS,Z set if zero
 ;
-;mCall0To1	(1+n),(n/a) used to set/clr PCLATH bits
-;mCall0To2	(1+n),(n/a) used to set/clr PCLATH bits
-;mCall0To3	(1+n),(n/a) used to set/clr PCLATH bits
 ;
-;mCall1To0	(1+n),(n/a) used to set/clr PCLATH bits
-;mCall1To2	(1+n),(n/a) used to set/clr PCLATH bits
-;mCall1To3	(1+n),(n/a) used to set/clr PCLATH bits
-;
-;mCall2To0	(1+n),(n/a) used to set/clr PCLATH bits
-;mCall2To1	(1+n),(n/a) used to set/clr PCLATH bits
-;mCall2To3	(1+n),(n/a) used to set/clr PCLATH bits
-;
-;mCall3To0	(1+n),(n/a) used to set/clr PCLATH bits
-;mCall3To1	(1+n),(n/a) used to set/clr PCLATH bits
-;mCall3To2	(1+n),(n/a) used to set/clr PCLATH bits
-;
-;mPCLGoto	(0),(n/a) Set PCLATH:0..2 then add W to PCL
 ;mBankISel	(0),(n/a) Set Status,IRP bit corect for the operand passed.
-;LOADFSR0 	(0),(n/a) Add (16 bits) ADDRESS+INDEX >> FSR0
-;LOADFSR1 	(0),(n/a) Add (16 bits) ADDRESS+INDEX >> FSR1
-;LOADFSR0W 	(0),(n/a) Add (16 bits) ADDRESS+WReg >> FSR0
-;LOADFSR1W	(0),(n/a) Add (16 bits) ADDRESS+WReg >> FSR1
-;LOADFSR0A	(0),(n/a) Move (16 bits) ADDRESS >> FSR0
-;LOADFSR1A	(0),(n/a) Move (16 bits) ADDRESS >> FSR1
+;
 ;===================================================================
 ; Instruction set extentions for 14 bit core (16F###)
 ;
@@ -114,164 +94,11 @@ TestTimerIsZero	macro	T_Number
 	IORWF	T_Number+1,W
 	endm	
 ;
-;=================================================================================
-;=================================================================================
-; Call macros, use only when stack space is short 16F877 version
-;
-;Call from segment 0 to segment 1
-;
-;
-mCall0To1	macro	Destination
-	BSF	PCLATH,3
-	CALL	Destination
-	CLRF	PCLATH
-	endm
-;
-;Call from segment 0 to segment 2
-;
-mCall0To2	macro	Destination
-	BSF	PCLATH,4
-	CALL	Destination
-	CLRF	PCLATH
-	endm
-;
-;Call from segment 0 to segment 3
-;
-mCall0To3	macro	Destination
-	BSF	PCLATH,3
-	BSF	PCLATH,4
-	CALL	Destination
-	CLRF	PCLATH
-	endm
-;
-;Call from segment 1 to segment 0
-;
-mCall1To0	macro	Destination
-	BCF	PCLATH,3
-	CALL	Destination
-	BSF	PCLATH,3
-	BCF	PCLATH,4
-	endm
-;
-;Call from segment 1 to segment 2
-;
-mCall1To2	macro	Destination
-	BSF	PCLATH,4
-	BCF	PCLATH,3
-	CALL	Destination
-	BCF	PCLATH,4
-	BSF	PCLATH,3
-	endm
-;
-;Call from segment 1 to segment 3
-;
-mCall1To3	macro	Destination
-	BSF	PCLATH,4
-	CALL	Destination
-	BSF	PCLATH,3
-	BCF	PCLATH,4
-	endm
-;
-;Call from segment 2 to segment 0
-;
-mCall2To0	macro	Destination
-	BCF	PCLATH,4
-	CALL	Destination
-	BCF	PCLATH,3
-	BSF	PCLATH,4
-	endm
-;
-;Call from segment 2 to segment 1
-;
-mCall2To1	macro	Destination
-	BSF	PCLATH,3
-	BCF	PCLATH,4
-	CALL	Destination
-	BCF	PCLATH,3
-	BSF	PCLATH,4
-	endm
-;
-;Call from segment 2 to segment 3
-;
-mCall2To3	macro	Destination
-	BSF	PCLATH,3
-	CALL	Destination
-	BCF	PCLATH,3
-	BSF	PCLATH,4
-	endm
-;
-;Call from segment 3 to segment 0
-;
-mCall3To0	macro	Destination
-	BCF	PCLATH,3
-	BCF	PCLATH,4
-	CALL	Destination
-	BSF	PCLATH,3
-	BSF	PCLATH,4
-	endm
-;
-;Call from segment 3 to segment 1
-;
-mCall3To1	macro	Destination
-	BCF	PCLATH,4
-	CALL	Destination
-	BSF	PCLATH,3
-	BSF	PCLATH,4
-	endm
-;
-;Call from segment 3 to segment 2
-;
-mCall3To2	macro	Destination
-	BCF	PCLATH,3
-	CALL	Destination
-	BSF	PCLATH,3
-	BSF	PCLATH,4
-	endm
-;
-;=================================================================================
-; Set PCLATH:0..2 then add W to PCL
-; CAUTION:The first BSF/BCF instruction and the location of the 
-;  last branched to instruction must be in the same page
-;
-; Entry: W= and 8 bit offset for PCL
-; Exit: branches forward W locations
-; RAM used:none
-; Calls:(0) none
-;
-mPCLGoto	macro	
-	if $ & 0x0100
-	BSF	PCLATH,0
-	else
-	BCF	PCLATH,0
-	endif
-	if $ & 0x0200
-	BSF	PCLATH,1
-	else
-	BCF	PCLATH,1
-	endif
-	if $ & 0x0400
-	BSF	PCLATH,2
-	else
-	BCF	PCLATH,2
-	endif
-;
-	ADDWF	PCL,F
-	endm
-;
 ;-----------------------------------------------------------------------------------------------
 ; The macro LOADFSR1 loads FSR1 and makes code easier to read.
 ;------------------------------------- LOADFSR macro -------------------------------------------
 ;
-LOADFSR0	macro 	ADDRESS,INDEX 				
-	movlw 	low ADDRESS 	; load address 						
-	addwf	INDEX,W	; add the index value to determine location in array
-	movwf 	FSR0L	; load FSR1L with pointer info
-	clrf	FSR0H
-	movlw	high ADDRESS
-	addwfc	FSR0H,F
-	endm		
-;
-LOADFSR1	macro 	ADDRESS,INDEX 				
+LOADFSR1	macro 	ADDRESS,INDEX 	; ADDRESS = I2C_ARRAY, INDEX = INDEX_I2C			
 	movlw 	low ADDRESS 	; load address 						
 	addwf	INDEX,W	; add the index value to determine location in array
 	movwf 	FSR1L	; load FSR1L with pointer info
@@ -280,34 +107,13 @@ LOADFSR1	macro 	ADDRESS,INDEX
 	addwfc	FSR1H,F
 	endm		
 ;
-LOADFSR0W	macro 	ADDRESS				
-	addlw 	low ADDRESS						
-	movwf 	FSR0L
+LOADFSR0	macro 	ADDRESS,INDEX 	; ADDRESS = I2C_ARRAY, INDEX = INDEX_I2C			
+	movlw 	low ADDRESS 	; load address 						
+	addwf	INDEX,W	; add the index value to determine location in array
+	movwf 	FSR0L	; load FSR0L with pointer info
 	clrf	FSR0H
 	movlw	high ADDRESS
-	addwfc	FSR0H,F	;<< needed to work w/ contig ram
-	endm		
-;
-LOADFSR1W	macro 	ADDRESS				
-	addlw 	low ADDRESS						
-	movwf 	FSR1L
-	clrf	FSR1H
-	movlw	high ADDRESS
-	addwfc	FSR1H,F	;<< needed to work w/ contig ram
-	endm		
-;
-LOADFSR0A	macro 	ADDRESS				
-	movlw 	low ADDRESS						
-	movwf 	FSR0L
-	movlw	high ADDRESS
-	movwf	FSR0H
-	endm		
-;
-LOADFSR1A	macro 	ADDRESS				
-	movlw 	low ADDRESS						
-	movwf 	FSR1L
-	movlw	high ADDRESS
-	movwf	FSR1H
+	addwfc	FSR0H,F
 	endm		
 ;
 ;=======================================================================================
@@ -438,67 +244,7 @@ CMP	macro	f
 	SUBWF	f,W
 	endm
 ;
-	if oldCode
 ;==============================================================
-; Long Call
-;
-LCALL	macro	dest
-	if ($ & 0x0800) <> (dest & 0x0800)
-	if dest & 0x0800
-	BSF	PCLATH,3
-	else
-	BCF	PCLATH,3
-	endif
-	endif
-		
-	if ($ & 0x1000) <> (dest & 0x1000)
-	if dest & 0x1000
-	BSF	PCLATH,4
-	else
-	BCF	PCLATH,4
-	endif
-	endif	
-
-	CALL	dest
-	if (($ & 0x0800) <> (dest & 0x0800)) | (($ & 0x1000) <> (dest & 0x1000))
-	if $ & 0x0800
-	BSF	PCLATH,3
-	else
-	BCF	PCLATH,3
-	endif
-	
-	if $ & 0x1000
-	BSF	PCLATH,4
-	else
-	BCF	PCLATH,4
-	endif
-	endif
-	endm
-;
-;==============================================================
-; Long GOTO
-;
-LGOTO	macro	dest
-	if ($ & 0x0800) <> (dest & 0x0800)
-	if dest & 0x0800
-	BSF	PCLATH,3
-	else
-	BCF	PCLATH,3
-	endif
-	endif
-		
-	if ($ & 0x1000) <> (dest & 0x1000)
-	if dest & 0x1000
-	BSF	PCLATH,4
-	else
-	BCF	PCLATH,4
-	endif
-	endif	
-
-	GOTO	dest
-	endm
-;
-	endif
 ;==============================================================
 ; Move File to W
 ;

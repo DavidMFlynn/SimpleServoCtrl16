@@ -38,6 +38,18 @@ DEBUGGABLE_SUFFIX=cof
 FINAL_IMAGE=dist/${CND_CONF}/${IMAGE_TYPE}/SimpleServo16.X.${IMAGE_TYPE}.${OUTPUT_SUFFIX}
 endif
 
+ifeq ($(COMPARE_BUILD), true)
+COMPARISON_BUILD=
+else
+COMPARISON_BUILD=
+endif
+
+ifdef SUB_IMAGE_ADDRESS
+
+else
+SUB_IMAGE_ADDRESS_COMMAND=
+endif
+
 # Object Directory
 OBJECTDIR=build/${CND_CONF}/${IMAGE_TYPE}
 
@@ -45,17 +57,18 @@ OBJECTDIR=build/${CND_CONF}/${IMAGE_TYPE}
 DISTDIR=dist/${CND_CONF}/${IMAGE_TYPE}
 
 # Source Files Quoted if spaced
-SOURCEFILES_QUOTED_IF_SPACED=/Projects/SimpleServoCtrl16/Firmware/SimpleServos.asm
+SOURCEFILES_QUOTED_IF_SPACED=../SimpleServos.asm
 
 # Object Files Quoted if spaced
-OBJECTFILES_QUOTED_IF_SPACED=${OBJECTDIR}/_ext/452989913/SimpleServos.o
-POSSIBLE_DEPFILES=${OBJECTDIR}/_ext/452989913/SimpleServos.o.d
+OBJECTFILES_QUOTED_IF_SPACED=${OBJECTDIR}/_ext/1472/SimpleServos.o
+POSSIBLE_DEPFILES=${OBJECTDIR}/_ext/1472/SimpleServos.o.d
 
 # Object Files
-OBJECTFILES=${OBJECTDIR}/_ext/452989913/SimpleServos.o
+OBJECTFILES=${OBJECTDIR}/_ext/1472/SimpleServos.o
 
 # Source Files
-SOURCEFILES=/Projects/SimpleServoCtrl16/Firmware/SimpleServos.asm
+SOURCEFILES=../SimpleServos.asm
+
 
 
 CFLAGS=
@@ -82,22 +95,22 @@ MP_LINKER_DEBUG_OPTION=
 # ------------------------------------------------------------------------------------
 # Rules for buildStep: assemble
 ifeq ($(TYPE_IMAGE), DEBUG_RUN)
-${OBJECTDIR}/_ext/452989913/SimpleServos.o: /Projects/SimpleServoCtrl16/Firmware/SimpleServos.asm  nbproject/Makefile-${CND_CONF}.mk
-	@${MKDIR} "${OBJECTDIR}/_ext/452989913" 
-	@${RM} ${OBJECTDIR}/_ext/452989913/SimpleServos.o.d 
-	@${RM} ${OBJECTDIR}/_ext/452989913/SimpleServos.o 
-	@${FIXDEPS} dummy.d -e "${OBJECTDIR}/_ext/452989913/SimpleServos.err" $(SILENT) -c ${MP_AS} $(MP_EXTRA_AS_PRE) -d__DEBUG -d__MPLAB_DEBUGGER_ICD3=1 -q -p$(MP_PROCESSOR_OPTION) -u  -l\\\"${OBJECTDIR}/_ext/452989913/SimpleServos.lst\\\" -e\\\"${OBJECTDIR}/_ext/452989913/SimpleServos.err\\\" $(ASM_OPTIONS)   -o\\\"${OBJECTDIR}/_ext/452989913/SimpleServos.o\\\" \\\"/Projects/SimpleServoCtrl16/Firmware/SimpleServos.asm\\\" 
-	@${DEP_GEN} -d "${OBJECTDIR}/_ext/452989913/SimpleServos.o"
-	@${FIXDEPS} "${OBJECTDIR}/_ext/452989913/SimpleServos.o.d" $(SILENT) -rsi ${MP_AS_DIR} -c18 
+${OBJECTDIR}/_ext/1472/SimpleServos.o: ../SimpleServos.asm  nbproject/Makefile-${CND_CONF}.mk
+	@${MKDIR} "${OBJECTDIR}/_ext/1472" 
+	@${RM} ${OBJECTDIR}/_ext/1472/SimpleServos.o.d 
+	@${RM} ${OBJECTDIR}/_ext/1472/SimpleServos.o 
+	@${FIXDEPS} dummy.d -e "${OBJECTDIR}/_ext/1472/SimpleServos.err" $(SILENT) -c ${MP_AS} $(MP_EXTRA_AS_PRE) -d__DEBUG -d__MPLAB_DEBUGGER_ICD3=1 -q -p$(MP_PROCESSOR_OPTION) -u  -l\\\"${OBJECTDIR}/_ext/1472/SimpleServos.lst\\\" -e\\\"${OBJECTDIR}/_ext/1472/SimpleServos.err\\\" $(ASM_OPTIONS)    -o\\\"${OBJECTDIR}/_ext/1472/SimpleServos.o\\\" \\\"../SimpleServos.asm\\\" 
+	@${DEP_GEN} -d "${OBJECTDIR}/_ext/1472/SimpleServos.o"
+	@${FIXDEPS} "${OBJECTDIR}/_ext/1472/SimpleServos.o.d" $(SILENT) -rsi ${MP_AS_DIR} -c18 
 	
 else
-${OBJECTDIR}/_ext/452989913/SimpleServos.o: /Projects/SimpleServoCtrl16/Firmware/SimpleServos.asm  nbproject/Makefile-${CND_CONF}.mk
-	@${MKDIR} "${OBJECTDIR}/_ext/452989913" 
-	@${RM} ${OBJECTDIR}/_ext/452989913/SimpleServos.o.d 
-	@${RM} ${OBJECTDIR}/_ext/452989913/SimpleServos.o 
-	@${FIXDEPS} dummy.d -e "${OBJECTDIR}/_ext/452989913/SimpleServos.err" $(SILENT) -c ${MP_AS} $(MP_EXTRA_AS_PRE) -q -p$(MP_PROCESSOR_OPTION) -u  -l\\\"${OBJECTDIR}/_ext/452989913/SimpleServos.lst\\\" -e\\\"${OBJECTDIR}/_ext/452989913/SimpleServos.err\\\" $(ASM_OPTIONS)   -o\\\"${OBJECTDIR}/_ext/452989913/SimpleServos.o\\\" \\\"/Projects/SimpleServoCtrl16/Firmware/SimpleServos.asm\\\" 
-	@${DEP_GEN} -d "${OBJECTDIR}/_ext/452989913/SimpleServos.o"
-	@${FIXDEPS} "${OBJECTDIR}/_ext/452989913/SimpleServos.o.d" $(SILENT) -rsi ${MP_AS_DIR} -c18 
+${OBJECTDIR}/_ext/1472/SimpleServos.o: ../SimpleServos.asm  nbproject/Makefile-${CND_CONF}.mk
+	@${MKDIR} "${OBJECTDIR}/_ext/1472" 
+	@${RM} ${OBJECTDIR}/_ext/1472/SimpleServos.o.d 
+	@${RM} ${OBJECTDIR}/_ext/1472/SimpleServos.o 
+	@${FIXDEPS} dummy.d -e "${OBJECTDIR}/_ext/1472/SimpleServos.err" $(SILENT) -c ${MP_AS} $(MP_EXTRA_AS_PRE) -q -p$(MP_PROCESSOR_OPTION) -u  -l\\\"${OBJECTDIR}/_ext/1472/SimpleServos.lst\\\" -e\\\"${OBJECTDIR}/_ext/1472/SimpleServos.err\\\" $(ASM_OPTIONS)    -o\\\"${OBJECTDIR}/_ext/1472/SimpleServos.o\\\" \\\"../SimpleServos.asm\\\" 
+	@${DEP_GEN} -d "${OBJECTDIR}/_ext/1472/SimpleServos.o"
+	@${FIXDEPS} "${OBJECTDIR}/_ext/1472/SimpleServos.o.d" $(SILENT) -rsi ${MP_AS_DIR} -c18 
 	
 endif
 

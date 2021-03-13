@@ -3,8 +3,8 @@
 ; I2C SLAVE DRIVER CODE
 ;
 ;    Filename:      I2C SLAVE.inc
-;    Date:          11/9/2015
-;    File Version:  1.0.5
+;    Date:          12/7/2015
+;    File Version:  1.0.7
 ;
 ;    Author:        David M. Flynn
 ;    Company:       Oxford V.U.E., Inc.
@@ -16,6 +16,8 @@
 ;
 ;    History:
 ;
+; 1.0.7  12/7/2015	Changed slave address to ram based I2CAddr.
+; 1.0.6  12/5/2015	Fixed some comments.
 ; 1.0.5  11/9/2015	Added watchdog to recover from wiring glitch.
 ; 1.0.4  11/5/2015	Optimized some code. Added AHEN=DHEN=1 clock stretching.
 ; 1.0.3  11/4/2015	Added ACK to R_Data for partial buffer read support.
@@ -35,7 +37,7 @@
 ;=========================================================================================
 ; Options
 ;
-;   I2C_ADDRESS and RX_ELEMENTS must be set and be the same in the master driver.
+;   I2C_ADDRESS, TX_ELEMENTS and RX_ELEMENTS must be set and be the same in the master driver.
 ;
 	ifndef useI2CISR
 	constant	useI2CISR=1
@@ -43,7 +45,7 @@
 ;=========================================================================================
 ;=========================================================================================
 ; What happens next:
-;  Sends or receives RX_ELEMENTS bytes of data from the master
+;  Sends or receives TX_ELEMENTS/RX_ELEMENTS bytes of data to/from the master
 ;
 ;=========================================================================================
 ; Routines:
@@ -56,13 +58,14 @@
 ;
 ;
 ;Note: only upper 7 bits of address are used
-;I2C_ADDRESS	EQU	0x30	; Slave address
+;I2C_ADDRESS	EQU	0x30	; Slave default address
 ;TX_ELEMENTS	EQU	.8	; number of allowable array elements
 ;RX_ELEMENTS	EQU	.8	; number of allowable array elements
 ;I2C_TX_Init_Val	EQU	0xAA	; value to load into transmit array to send to master
 ;I2C_RX_Init_Val	EQU	0xAA	; value to load into received data array
 ;
 ;------------------------------------ variables-------------------------------------------
+;	I2CAddr		;Bank 0 Ram
 ;
 ;	cblock	0x70									; set up in shared memory for easy access
 ;	INDEX_I2C		; index used to point to array location
@@ -142,7 +145,7 @@ I2C_Idle	movlb	0
 ; fill the RX and TX arrays with I2C_TX_Init_Val, I2C_RX_Init_Val
 ;
 Init_I2C:
-; for J=0 to RX_ELEMENTS-1
+; for J=0 to TX_ELEMENTS-1
 ;  I2C_ARRAY_TX(J)=I2C_TX_Init_Val
 	movlw	low I2C_ARRAY_TX
 	movwf	FSR1L
@@ -184,7 +187,9 @@ Init_I2C_L2	movwi	FSR1++
 	bsf	SSP1CON3,PCIE	; Stop causes interupt
 	bsf	SSP1CON3,AHEN	; Enable address holding, CKP must be set after each byte
 	bsf	SSP1CON3,DHEN	; Enable data holding
-	movlw	I2C_ADDRESS	; load the slave address
+	movlb	0
+	movf	I2CAddr,W	; load the slave address
+	BANKSEL	SSP1ADD
 	movwf	SSP1ADD
 ;
 	if useI2CISR

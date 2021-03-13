@@ -10,8 +10,7 @@
 ;    Web Site:      http://www.oxfordvue.com/
 ;
 ;====================================================================================================
-;    Low level routines for SimpleServo16 PCB
-;
+;  Low level routines for SimpleServo16 PCB
 ;
 ;    History:
 ;
@@ -41,88 +40,23 @@
 ;   Pin 18 (RA1) Address A1 (output)
 ;
 ;=========================================================================================
+;    Defines constants and variables in Banks 3,4,5 and 6
 ; include ServoLib.h
 ;=========================================================================================
-; Constants:
+;=========================================================================================
+; Routines:
 ;
-;DefaultMaxSpeed	EQU	0x30	;1uS/20mS^2
-;DefaultAccel	EQU	0x01
-;DefaultSFlags	EQU	b'00100010'	;In Position
+; ISR's
+;  ISR_ServoCCP1
+;  ISR_ServoCCP2
 ;
-;CCPCON_Clr	EQU	b'00001001'	;Clear output on match
-;CCPCON_Set	EQU	b'00001000'	;Set output on match
-;CCPCON_Int	EQU	b'00001010'	;Interupt only on match
+; ServoInit16	Call once to init vars
+; StartServos	Call once to start servo system
 ;
-;kCenterPulseWidth	EQU	d'3000'	;1500uS
-;kMinPulseWidth	EQU	d'1800'	;900uS
-;kMaxPulseWidth	EQU	d'4200'	;2100uS
-;kServoDwellTimeA	EQU	d'4500'	;Address Change time 2250uS
-;kServoAddrTime	EQU	d'500'	;250uS
-;kServoDwellTime	EQU	d'5000'	;2.5mS/Channel
+; StartMotion	Call to move a servo,  W=Servo# 0..15, Param7D:Param7C = Dest
+; IdleServos	Call from main loop
 ;
-;================================================================================================
-;  Bank3 Ram 1A0h-1EFh 80 Bytes
-;
-;Bank3_Vars	udata	0x1A0
-;ServoMaxSpeed0_7	res	.8	;0=no Accel, 1..255 counts/20mS
-;ServoMaxSpeed8_15	res	.8
-;ServoAccelValue0_7	res	.8	;1..8 counts/20mS squared
-;ServoAccelValue8_15	res	.8
-;ServoCurSpeed0_7	res	.8	;0=Stopped, MSb=Direction, 1..127
-;ServoCurSpeed8_15	res	.8
-;
-;================================================================================================
-;  Bank4 Ram 220h-26Fh 80 Bytes
-;
-;Bank4_Vars	udata	0x220
-;CMDServoIDX	res	1	;0..15, used by IdleServos
-;CMDSigTime0_7	res	.16	;Commanded position
-;CMDSigTime8_15	res	.16
-;MinTime0_7	res	.16	;Minimum pulse time (900uS=1800)
-;MinTime8_15	res	.16	;Minimum pulse time (900uS=1800)
-;
-;================================================================================================
-;  Bank5 Ram 2A0h-2EFh 80 Bytes
-;
-;Bank5_Vars	udata	0x2A0
-;ServoIDX	res	1	;Index 0..7
-;ServoCtlFlags	res	1
-; Flag bits, ToDo at Next ISR:
-;CyclePulseStart	EQU	0	;Start cycle banks 1 and 2
-;CyclePulseEnd1	EQU	2	;End pulse, begin dwell
-;CyclePulseEnd2	EQU	3	; Set when a pulse is started.
-;AddrChngDwell	EQU	4	;dwell 100uS , change address
-;
-;ServoFlags	res	.8	;4 bits per servo
-; Flag bits
-;ValueSentFlag0_7	EQU	0
-;InPositionFlag0_7	EQU	1
-;ServoOnBit0_7	EQU	2
-;MovingFWD0_7	EQU	3
-;ValueSentFlag8_15	EQU	4
-;InPositionFlag8_15	EQU	5
-;ServoOnBit8_15	EQU	6
-;MovingFWD8_15	EQU	7
-;
-;CalcdDwell	res	1	;scratch var
-;CalcdDwellH	res	1
-;SigOutTime0_7	res	.16	;Current position
-;SigOutTime8_15	res	.16
-;DwellTime0_7	res	.16	;Next dwell time
-;DwellTime8_15	res	.16
-;
-;================================================================================================
-;  Bank6 Ram 320h-26Fh 80 Bytes
-;
-;Bank6_Vars	udata	0x320
-;ServoFlags2	res	.8	;4 bits per servo
-; Flag bits
-;AccelComplete0_7	EQU	0
-;AccelComplete8_15	EQU	4
-;MaxTime0_7	res	.16	;Maximum pulse time (2100uS=4200)
-;MaxTime8_15	res	.16	;Maximum pulse time (2100uS=4200)
-;AccelRampLen0_7	res	.16
-;AccelRampLen8_15	res	.16
+; TestServoLib	Call from MainLoop to test, "this is only a test"
 ;
 ;=========================================================================================
 ; Init Code:
@@ -145,21 +79,6 @@
 ;
 ;	CALL	IdleServos
 ;	CALL	TestServoLib	;Optional Test Routine
-;
-;=========================================================================================
-; Routines:
-;
-; ServoInit16	Call once to init vars
-; StartServos	Call once to start servo system
-;
-; StartMotion	Call to move a servo,  W=Servo# 0..15, Param7D:Param7C = Dest
-; IdleServos	Call often from main loop
-;
-; TestServoLib	Call from MainLoop to test, "this is only a test"
-;
-; ISR's
-;  ISR_ServoCCP1
-;  ISR_ServoCCP2
 ;
 ;=========================================================================================
 ; Interupt Service Routine for CCP1
@@ -394,7 +313,7 @@ IRQ_Servo2_End	RETURN
 ;=========================================================================================
 ;=========================================================================================
 ; Servo motion control
-; Call often from main loop
+; Call from main loop
 ;
 IdleServos	MOVLB	0x04	; bank 4
 	CALL	SetFSR0ToServoFlags
@@ -1080,129 +999,6 @@ ClampMinMax_too	MOVIW	FSR0++
 	MOVWF	Param7D
 	RETURN
 ;
-	if oldCode
-;=========================================================================================
-;=====================================================================================
-;
-MoveTo78	MOVWF	FSR0L
-	MOVF	INDF0,W
-	MOVWF	Param78
-	INCF	FSR0L,F
-	MOVF	INDF0,W
-	MOVWF	Param79
-	RETURN
-;
-;=====================================================================================
-;
-MoveTo7C	MOVWF	FSR0L
-	MOVF	INDF0,W
-	MOVWF	Param7C
-	INCF	FSR0L,F
-	MOVF	INDF0,W
-	MOVWF	Param7D
-	RETURN
-;
-;=====================================================================================
-;
-Move78To7C	MOVF	Param78,W
-	MOVWF	Param7C
-	MOVF	Param79,W
-	MOVWF	Param7D
-	RETURN
-;
-;=====================================================================================
-;
-MoveFrom7C	MOVWF	FSR0L
-	MOVF	Param7C,W
-	MOVWF	INDF0
-	INCF	FSR0L,F
-	MOVF	Param7D,W
-	MOVWF	INDF0
-	RETURN
-;
-;=====================================================================================
-; Less or Equal
-;
-; Entry: Param7D:Param7C, Param79:Param78
-; Exit: Param77:0=Param7D:Param7C<=Param79:Param78
-;
-Param7D_LE_Param79	CLRF	Param77	;default to >
-	MOVF	Param79,W
-	SUBWF	Param7D,W	;Param7D-Param79
-	SKPNB		;Param7D<Param79?
-	GOTO	SetTrue	; Yes
-	SKPZ		;Param7D>Param79?
-	RETURN		; Yes
-	MOVF	Param78,W	; No, MSB is a match
-	SUBWF	Param7C,W	;Param7C-Param78
-	SKPNB		;Param7C<Param78?
-	GOTO	SetTrue	; Yes
-	SKPZ		;LSBs then same?
-	RETURN		; No
-;
-SetTrue	BSF	Param77,0
-	RETURN
-;
-;=====================================================================================
-; Greater or Equal
-;
-; Entry: Param7D:Param7C, Param79:Param78
-; Exit: Param77:0=Param7D:Param7C>=Param79:Param78
-;
-Param7D_GE_Param79	CLRF	Param77	;default to <
-	MOVF	Param79,W
-	SUBWF	Param7D,W	;Param7D-Param79
-	SKPNB		;Param7D<Param79?
-	RETURN		; Yes
-	SKPZ		;Param7D>Param79?
-	GOTO	SetTrue	; Yes
-Param7D_GE_Param79_1	MOVF	Param78,W	; No, MSB is a match
-	SUBWF	Param7C,W	;Param7C-Param78
-	SKPNB		;Param7C<Param78?
-	RETURN		; Yes
-	GOTO	SetTrue	; No
-;
-;======================================================================================
-;
-EqualMin	CLRF	Param77
-	MOVLW	high kMinPulseWidth
-	SUBWF	Param7D,W
-	SKPZ
-	RETURN
-	MOVLW	low kMinPulseWidth
-	SUBWF	Param7C,W
-	SKPNZ
-	BSF	Param77,0
-	RETURN
-	
-;
-Subtract1000	MOVLW	low kMinPulseWidth
-	SUBWF	Param7C,F
-	SUBBF	Param7D,F
-	MOVLW	high kMinPulseWidth
-	SUBWF	Param7D,F
-	RETURN
-;
-Subtract1500	MOVLW	low d'1500'
-	SUBWF	Param7C,F
-	SUBBF	Param7D,F
-	MOVLW	high d'1500'
-	SUBWF	Param7D,F
-	RETURN
-;
-X2	CLRC
-	RLF	Param7C,F
-	RLF	Param7D,F
-	RETURN
-;
-Add1000	MOVLW	low kMinPulseWidth
-	ADDWF	Param7C,F
-	ADDCF	Param7D,F
-	MOVLW	high kMinPulseWidth
-	ADDWF	Param7D,F
-	RETURN
-;
-	endif
 ;
 
 

@@ -21,12 +21,25 @@
 ;
 ;====================================================================================================
 ; Options
+I2C_ADDRESS	EQU	0x34	; Slave address
 ;
 ;====================================================================================================
 ;====================================================================================================
 ; What happens next:
 ;   At power up the system LED will blink.
 ;
+; Servo I2C API
+;  Address, Command, Servo#, Data (1 or 2 bytes)
+;
+; Address: This is the 7bit I2C address of the board. Default is 0x30
+; Command:
+;	kServoPosCmd	0x80	;Position Command CMDSigTime
+;	kServoMaxSpd	0x90	;LSB is ServoMaxSpeed
+;	kServoAccel	0xA0	;LSB is ServoAccelValue
+;	kServoON	0xB0	;Set ServoActive
+;	kServoOFF	0xC0	;Clr ServoActive
+;	kServoMinTime	0xD0	;Minimum pulse time (900uS=1800)
+;	kServoMaxTime	0xE0	;Maximum pulse time (2100uS=4200)
 ;
 ;====================================================================================================
 ;
@@ -53,7 +66,7 @@
 ;====================================================================================================
 ;
 ;
-	list	p=16f1847,r=hex,W=0	; list directive to define processor
+	list	p=16f1847,r=hex,W=1	; list directive to define processor
 	nolist
 	include	p16f1847.inc	; processor specific variable definitions
 	list
@@ -88,6 +101,7 @@
 	constant	useRS232=0
 	constant	useI2CISR=1
 	constant	useI2CWDT=1
+	constant	UseEEParams=1
 ;
 #Define	_C	STATUS,C
 #Define	_Z	STATUS,Z
@@ -140,7 +154,12 @@ LED3_Bit	EQU	0	;LED3 (Active Low Output)
 All_In	EQU	0xFF
 All_Out	EQU	0x00
 ;
-TMR0Val	EQU	0xB2	;0xB2=100Hz, 0.000128S/Count
+OSCCON_Value	EQU	b'01110010'	;8MHz
+;OSCCON_Value	EQU	b'11110000'	;32MHz
+T2CON_Value	EQU	b'01001110'	;T2 On, /16 pre, /10 post
+;T2CON_Value	EQU	b'01001111'	;T2 On, /64 pre, /10 post
+PR2_Value	EQU	.125
+;
 LEDTIME	EQU	d'100'	;1.00 seconds
 LEDErrorTime	EQU	d'10'
 ;
@@ -154,14 +173,6 @@ TMR1H_Val	EQU	0xF6
 ;TMR1L_Val	EQU	0x8F	; -625 = 0.625 mS, 1600 steps/sec
 ;TMR1H_Val	EQU	0xFD
 ;
-TXSTA_Value	EQU	b'00100000'	;8 bit, TX enabled, Async, low speed
-RCSTA_Value	EQU	b'10010000'	;RX enabled, 8 bit, Continious receive
-; 8MHz clock low speed (BRGH=0,BRG16=1)
-Baud_300	EQU	d'1666'	;0.299, -0.02%
-Baud_1200	EQU	d'416'	;1.199, -0.08%
-Baud_2400	EQU	d'207'	;2.404, +0.16%
-Baud_9600	EQU	d'51'	;9.615, +0.16%
-BaudRate	EQU	Baud_9600
 ;
 ;
 DebounceTime	EQU	d'10'
@@ -177,13 +188,11 @@ DebounceTime	EQU	d'10'
 	cblock	0x20 
 ;
 	LED_Time
-	lastc		;part of tickcount timmer
-	tickcount		;Timer tick count
+	LED_Count		;part of tickcount timmer
+	ISRScratch		;Timer tick count
 ;
 	StatLED_Time
 	Stat_Count
-;
-;
 ;
 	EEAddrTemp		;EEProm address to read or write
 	EEDataTemp		;Data to be writen to EEProm
@@ -198,8 +207,11 @@ DebounceTime	EQU	d'10'
 	Timer4Lo		;4th 16 bit timer
 	Timer4Hi		; debounce timer
 ;
+	Flags
 	SendingIdx
 ;
+; these are saved in eeprom
+	I2CAddr
 	SysFlags
 ;
 	endc
@@ -210,8 +222,8 @@ DebounceTime	EQU	d'10'
 #Define	LED2_Flag	SysFlags,3
 #Define	LED3_Flag	SysFlags,4
 ;
-;#Define	FirstRAMParam	MinSpdLo
-;#Define	LastRAMParam	SysFlags
+#Define	FirstRAMParam	I2CAddr
+#Define	LastRAMParam	SysFlags
 ;
 	if useI2CWDT
 TimerI2C	EQU	Timer1Lo
@@ -222,7 +234,6 @@ TimerI2C	EQU	Timer1Lo
 ;
 ; I2C Stuff is here
 ;Note: only upper 7 bits of address are used
-I2C_ADDRESS	EQU	0x30	; Slave address
 RX_ELEMENTS	EQU	.32	; number of allowable array elements, in this case 16
 TX_ELEMENTS	EQU	.14	; Status nibble for each servo
 I2C_TX_Init_Val	EQU	0xAA	; value to load into transmit array to send to master
@@ -233,6 +244,10 @@ I2C_ARRAY_TX	res	RX_ELEMENTS	; array to transmit to master
 I2C_ARRAY_RX 	res	TX_ELEMENTS 	; array to receive from master
 ;
 ;
+;====================================================================================================
+;  Part of SimpleServo16
+;    Defines constants and variables in Banks 3,4,5 and 6
+;
 	include <ServoLib.h>
 ;
 ;=======================================================================================================
@@ -241,9 +256,9 @@ I2C_ARRAY_RX 	res	TX_ELEMENTS 	; array to receive from master
 ;=======================================================================================================
 ;
 	cblock	0x70
-	Param70
-	Param71
-	Param72
+	Param70		;Used by I2C
+	Param71		;Used by I2C
+	Param72		;Used by I2C
 	Param73
 	Param74
 	Param75
@@ -273,22 +288,22 @@ HasISR	EQU	0x80	;used to enable interupts 0x80=true 0x00=false
 ;=========================================================================================
 ;==============================================================================================
 ; ID Locations
-;	ORG	0x2000
-;	DE	'1','.','0','0'
+	__idlocs	0x10A1
 ;
 ;==============================================================================================
 ; EEPROM locations (NV-RAM) 0x00..0x7F (offsets)
+	ORG	0xF000
+	de	I2C_ADDRESS	;nvI2CAddr
+	de	0x00	;nvSysFlags
+; EEPROM locations (NV-RAM) 0x00..0x7F (offsets)
 	cblock	0x0000
 ;
-nvMinSpdLo;	RES	1	;0x1E; -1250 = 1.25 mS, 60RPM
-nvMinSpdHi;	RES	1	;0xFB
-nvMaxSpdLo;	RES	1	;0x8F; -625 = 0.625 mS, 120RPM
-nvMaxSpdHi;	RES	1	;0xFD
+	nvI2CAddr
+	nvSysFlags
 ;
-nvSysFlags;	RES	1
 	endc
 ;
-#Define	nvFirstParamByte	nvMinSpdLo
+#Define	nvFirstParamByte	nvI2CAddr
 #Define	nvLastParamByte	nvSysFlags
 ;
 ;
@@ -309,19 +324,18 @@ nvSysFlags;	RES	1
 ;
 	ORG	0x004	; interrupt vector location
 	CLRF	BSR	; bank0
+	clrf	PCLATH
 ;
+; Timer 2
+	BTFSS	PIR1,TMR2IF
+	GOTO	TMR2_End
 ;
-	btfss	INTCON,T0IF
-	goto	SystemBlink_end
-;
-	movlw	TMR0Val	;256x39+16 cycles (10,000uS)
-	addwf	TMR0,F	; reload TMR0 with -40
-	bcf	INTCON,T0IF	; reset interupt flag bit
 ;------------------
 ; These routines run 100 times per second
 ;------------------
 ;Decrement timers until they are zero
 ; 
+	CLRF	FSR0H
 	call	DecTimer1	;if timer 1 is not zero decrement
 	call	DecTimer2
 	call	DecTimer3
@@ -349,11 +363,11 @@ nvSysFlags;	RES	1
 	BTFSS	SW3_In
 	BSF	SW3_Flag
 ; Dec LED time
-	DECFSZ	tickcount,F	;Is it time?
-	GOTO	SystemBlink_end	; No, not yet
+	DECFSZ	LED_Count,F	;Is it time?
+	bra	TMR2_Done	; No, not yet
 ;
 	MOVF	LED_Time,W
-	MOVWF	tickcount
+	MOVWF	LED_Count
 ; Flash LEDs
 	BCF	INDF0,LED1_Bit
 	BTFSC	LED2_Flag
@@ -362,7 +376,8 @@ nvSysFlags;	RES	1
 	BCF	INDF0,LED3_Bit
 ;
 ;
-SystemBlink_end	
+TMR2_Done	BCF	PIR1,TMR2IF
+TMR2_End:	
 ;
 ;=========================================================================================
 	MOVLB	0	;Bank0
@@ -414,7 +429,7 @@ start	MOVLB	0x01	; select bank 1
 	bsf	OPTION_REG,PS2
 ;
 	MOVLB	0x01	; bank 1
-	MOVLW	b'01110010'	; 8 MHz
+	MOVLW	OSCCON_Value
 	MOVWF	OSCCON
 	movlw	b'00010111'	; WDT prescaler 1:65536 period is 2 sec (RESET value)
 	movwf	WDTCON 	
@@ -430,6 +445,14 @@ start	MOVLB	0x01	; select bank 1
 	MOVWF	T1CON
 	bcf	T1GCON,TMR1GE	;always count
 ;
+	BANKSEL	T2CON	;Setup T2 for 100/s
+	MOVLW	T2CON_Value
+	MOVWF	T2CON
+	BANKSEL	PR2
+	MOVLW	PR2_Value
+	MOVWF	PR2
+	BANKSEL	PIE1	;Enable Interupts
+	BSF	PIE1,TMR2IE
 ;
 	MOVLB	0x00	;Bank 0
 ; setup data ports
@@ -442,17 +465,6 @@ start	MOVLB	0x01	; select bank 1
 	movwf	TRISA
 	movlw	PortBDDRBits	;setup for programer
 	movwf	TRISB
-;
-	if useRS232
-; setup serial I/O
-	MOVLW	TXSTA_Value
-	MOVWF	TXSTA
-	MOVLW	BaudRate
-	MOVWF	SPBRG
-	MOVLB	0x00	; bank 0
-	MOVLW	RCSTA_Value
-	MOVWF	RCSTA
-	endif
 ;
 	CLRWDT
 ; clear memory to zero
@@ -467,11 +479,12 @@ start	MOVLB	0x01	; select bank 1
 	MOVWF	LED_Time
 ;
 	CLRWDT
-	MOVLB	0x00
+	call	CopyToRam
+;
+	CLRWDT
 	call	Init_I2C	;setup I2C
 ;
 	bsf	INTCON,PEIE	; enable periferal interupts
-	bsf	INTCON,T0IE	; enable TMR0 interupt
 	bsf	INTCON,GIE	; enable interupts
 ;
 ;=========================================================================================
@@ -480,25 +493,6 @@ start	MOVLB	0x01	; select bank 1
 	CALL	ServoInit16
 	CALL	StartServos
 ;
-; tc Test servo code
-;	MOVLB	0x05
-;	BSF	ServoFlags,ServoOnBit0_7 ;Servo 0 on
-;	BSF	ServoFlags,ServoOnBit8_15 ;Servo 8 on
-;	BSF	ServoFlags+1,ServoOnBit0_7 ;Servo 1 on
-;	MOVLB	0x03
-;	MOVLW	0x01
-;	MOVWF	ServoCurSpeed0_7	;speed 0
-;	MOVWF	ServoCurSpeed8_15	;speed 8
-;	MOVWF	ServoCurSpeed0_7+1	;speed 1
-	MOVLB	0x03
-	MOVLW	0x03
-	MOVWF	ServoMaxSpeed0_7+1
-	MOVLW	HIGH d'3000'	;1900 uS
-	MOVWF	Param7D
-	MOVLW	LOW d'3000'
-	MOVWF	Param7C
-	MOVLW	0x02	;Servo# 0
-	CALL	StartMotion
 ;
 ;=========================================================================================
 ;=========================================================================================
@@ -627,6 +621,9 @@ I2C_DataInturp_7:
 ;
 ; Cmd was not valid
 	GOTO	I2C_DataInturp_End
+;-----------------
+;Entry: FSR0 >> I2C_ARRAY_RX, FSR1 >> data dest
+;Exit: 
 ;
 I2C_DI_Mov2	MOVIW	FSR0++
 	MOVWI	FSR1++
@@ -655,8 +652,8 @@ I2C_DataInturp_L2	MOVLW	0x00
 	RETURN
 ;
 ;==============================================================
-;
-; SigOutTime0_7,ServoFlags
+;Send 14 bytes
+; ServoFlags, Servo#, SigOutTime, Servo#, SigOutTime
 ;
 I2C_DataSender	BTFSC	I2C_TXLocked	;Locked?
 	RETURN		; Yes

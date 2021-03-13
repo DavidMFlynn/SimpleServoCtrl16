@@ -1,0 +1,3 @@
+(sym_lib_table
+  (lib (name "SimpleServoCtrl-rescue")(type "Legacy")(uri "${KIPRJMOD}/SimpleServoCtrl-rescue.lib")(options "")(descr ""))
+)
