@@ -1,0 +1,27 @@
+Simple Servo Controller 16 Packet Serial Parts List
+
+Ref.	Desc.	P/N
+====================================================================================
+C1	Cap. 2.2uf 35v
+C2,C3,C4,C5,C8,C9	Cap. 0.1uf 50v SMT 0805 (6)
+C6,C7	Cap. 220uf 25v (2)
+
+D1,D2,D3	LED SMT 1210 (3)
+D4	Diode 1A GP SMT SMA
+
+R1,R2,R3,R4,R5,
+R6,R7,R8,R9,R10,
+R11,R12,R13,R14,R15,
+R16	Res 220Ω SMT 0805 (16)
+R17,R19,R21	Res 470Ω SMT 0805 (3)
+R18,R20,R22	Res 47K SMT 0805 (3)
+
+U1	PIC16F1847-ISO SO-18
+U2,U3	74HC237 SO-16 (2)
+U4	L78L05 5V 100mA SMT SOT89
+
+J1	Conn. 4 Pin Header Molex KK 2.54
+J2,J3,J4,J6,J7	Conn. 8 Pin Header (6)
+J8	DNI
+
+P1	Conn. or Wires P=5.08
