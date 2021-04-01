@@ -1,8 +1,8 @@
 ;====================================================================================================
 ;
-;    Filename:      SimpleServos.asm
-;    Date:          11/19/2015
-;    File Version:  1.0d3
+;    Filename:      SimpleServo16PS.asm
+;    Date:          3/31/2021
+;    File Version:  1.0d1
 ;    
 ;    Author:        David M. Flynn
 ;    Company:       Oxford V.U.E., Inc.
@@ -10,14 +10,15 @@
 ;    Web Site:      http://www.oxfordvue.com/
 ;
 ;====================================================================================================
-;    SimpleServos is a 16 servo controller with speed, accel and position control.
+;    SimpleServo is a 16 servo controller with speed, accel and position control.
+;    SimpleServo16PS is the TTL packet serial version.
 ;
+;    Features:	TTL Packet Serial
+;	R/C Servo PWM output 16 channel at 20mS
+;	3 Buttons/LEDs for config
 ;
 ;    History:
-;
-; 1.0d3   11/19/2015	More work on I2C.
-; 1.0d2   5/25/2015	Incomplete, ISR is almost there.
-; 1.0d1   4/4/2015	First code. Copied from StepperTest.
+; 1.0d1   3/31/2021	Copied from Simple Servo 16 1.0d3
 ;
 ;====================================================================================================
 ; Options
@@ -28,10 +29,7 @@ I2C_ADDRESS	EQU	0x34	; Slave address
 ; What happens next:
 ;   At power up the system LED will blink.
 ;
-; Servo I2C API
-;  Address, Command, Servo#, Data (1 or 2 bytes)
 ;
-; Address: This is the 7bit I2C address of the board. Default is 0x30
 ; Command:
 ;	kServoPosCmd	0x80	;Position Command CMDSigTime
 ;	kServoMaxSpd	0x90	;LSB is ServoMaxSpeed
@@ -46,17 +44,17 @@ I2C_ADDRESS	EQU	0x34	; Slave address
 ;   Pin 1 (RA2/AN2) Address A2 (output)
 ;   Pin 2 (RA3/AN3) Enable Servos 0..7 (active low output)
 ;   Pin 3 (RA4/AN4) Enable Servos 8..15 (active low output)
-;   Pin 4 (RA5/MCLR*) N.C.
+;   Pin 4 (RA5/MCLR*) Vpp
 ;   Pin 5 (GND) Ground
-;   Pin 6 (RB0) SW3/LED3 (Active Low Input/Output)
-;   Pin 7 (RB1/AN11/SDA1) I2C Data
-;   Pin 8 (RB2/AN10/RX) SW2/LED2 (Active Low Input/Output)
+;   Pin 6 (RB0) SW1/LED1 (Active Low Input/Output) (System LED)
+;   Pin 7 (RB1/AN11/SDA1) RX Data
+;   Pin 8 (RB2/AN10/RX)   TX Data 
 ;   Pin 9 (RB3/CCP1) Pulse output for Servos 0..7
 ;
-;   Pin 10 (RB4/AN8/SLC1) I2C Clock
-;   Pin 11 (RB5/AN7)  SW1/LED1 (Active Low Input/Output)(System LED)
-;   Pin 12 (RB6/AN5/CCP2) N.C.
-;   Pin 13 (RB7/AN6) N.C.
+;   Pin 10 (RB4/AN8/SLC1) SW2/LED2 (Active Low Input/Output)
+;   Pin 11 (RB5/AN7)  SW3/LED3 (Active Low Input/Output)
+;   Pin 12 (RB6/AN5/CCP2) ICSPCLK
+;   Pin 13 (RB7/AN6) ICSPDAT
 ;   Pin 14 (Vcc) +5 volts
 ;   Pin 15 (RA6) N.C.
 ;   Pin 16 (RA7/CCP2) Pulse output for Servos 8..15
@@ -98,10 +96,22 @@ I2C_ADDRESS	EQU	0x34	; Slave address
 ; See respective data sheet for additional information on configuration word.
 ;
 	constant	oldCode=0
-	constant	useRS232=0
-	constant	useI2CISR=1
-	constant	useI2CWDT=1
+	constant	useRS232=1
 	constant	UseEEParams=1
+	constant	UseAuxLEDBlinking=0
+;
+	constant	UseAltSerialPort=0
+	constant	RP_LongAddr=0
+	constant	RP_AddressBytes=1
+	constant	RP_DataBytes=4
+	constant	UseRS232SyncBytes=1
+kRS232SyncByteValue	EQU	0xDD
+	constant	UseRS232Chksum=1
+	constant               UsePID=0
+;
+kRS232_MasterAddr	EQU	0x01	;Master's Address
+kRS232_SlaveAddr	EQU	0x02	;This Slave's Address
+kSysMode	EQU	.0	;Default Mode
 ;
 #Define	_C	STATUS,C
 #Define	_Z	STATUS,Z
@@ -114,34 +124,36 @@ I2C_ADDRESS	EQU	0x34	; Slave address
 ;    Port A bits
 PortADDRBits	EQU	b'01100000'
 PortAValue	EQU	b'00011000'
+ANSELA_Val	EQU	b'00000000'
 ;
 #Define	Servo_A0	LATA,0	;Output
 #Define	Servo_A1	LATA,1	;Output
 #Define	Servo_A2	LATA,2	;Output
 #Define	Enable0_7	LATA,3	;Output RA3
 #Define	Enable8_15	LATA,4	;Output RA4
-#Define	RA5_In	PORTA,5	;unused
-#Define	RA6_In	PORTA,6	;unused
+#Define	RA5_In	PORTA,5	;unused, Vpp
+#Define	RA6_In	PORTA,6	;unused, n/c
 #Define	RA7_Out	PORTA,7	;CCP2 Output
 ;
 Servo_AddrDataMask	EQU	0xF8
 ;
 ;
 ;    Port B bits
-PortBDDRBits	EQU	b'11110111'	;LEDs Out Others In
+PortBDDRBits	EQU	b'11110011'	;LEDs Out Others In
 PortBValue	EQU	b'00000000'
+ANSELB_Val	EQU	b'00000000'
 ;
-#Define	SW3_In	PORTB,0	;SW3/LED3
-#Define	RB1_In	PORTB,1	;I2C Data
-#Define	SW2_In	PORTB,2	;SW2/LED2
+#Define	SW1_In	PORTB,0	;SW1/LED1
+#Define	RB1_In	PORTB,1	;RX Data
+#Define	RB2_In	PORTB,2	;TX Data
 #Define	RB3_Out	PORTB,3	;CCP1 Output
-#Define	RB4_In	PORTB,4	;I2C Clock
-#Define	SW1_In	PORTB,5	;SW1/LED1
-#Define	RB6_In	PORTB,6	;N.C.
-#Define	RB7_In	PORTB,7	;N.C.
-LED1_Bit	EQU	5	;LED1 (Active Low Output)
-LED2_Bit	EQU	2	;LED2 (Active Low Output)
-LED3_Bit	EQU	0	;LED3 (Active Low Output)
+#Define	SW2_In	PORTB,4	;SW2/LED2
+#Define	SW3_In	PORTB,5	;SW3/LED3
+#Define	RB6_In	PORTB,6	;N.C. ICSPCLK
+#Define	RB7_In	PORTB,7	;N.C. ICSPDAT
+LED1_Bit	EQU	0	;LED1 (Active Low Output)
+LED2_Bit	EQU	4	;LED2 (Active Low Output)
+LED3_Bit	EQU	5	;LED3 (Active Low Output)
 #Define	LED1_Tris	TRISB,LED1_Bit	;LED1 (Active Low Output)
 #Define	LED2_Tris	TRISB,LED2_Bit	;LED2 (Active Low Output)
 #Define	LED3_Tris	TRISB,LED3_Bit	;LED3 (Active Low Output)
@@ -209,9 +221,13 @@ DebounceTime	EQU	d'10'
 ;
 	Flags
 	SendingIdx
+;---------------------
+;Below here are saved in eeprom
 ;
-; these are saved in eeprom
-	I2CAddr
+	SysMode
+	RS232_MasterAddr
+	RS232_SlaveAddr
+	ssFlags		;Serial Servo flags
 	SysFlags
 ;
 	endc
@@ -222,26 +238,25 @@ DebounceTime	EQU	d'10'
 #Define	LED2_Flag	SysFlags,3
 #Define	LED3_Flag	SysFlags,4
 ;
-#Define	FirstRAMParam	I2CAddr
+#Define	FirstRAMParam	SysMode
 #Define	LastRAMParam	SysFlags
 ;
-	if useI2CWDT
-TimerI2C	EQU	Timer1Lo
-	endif
 ;
 ;================================================================================================
 ;  Bank2 Ram 120h-16Fh 80 Bytes
 ;
-; I2C Stuff is here
-;Note: only upper 7 bits of address are used
-RX_ELEMENTS	EQU	.32	; number of allowable array elements, in this case 16
-TX_ELEMENTS	EQU	.14	; Status nibble for each servo
-I2C_TX_Init_Val	EQU	0xAA	; value to load into transmit array to send to master
-I2C_RX_Init_Val	EQU	0xAB	; value to load into received data array
+#Define	Ser_Buff_Bank	2
 ;
-Bank2_Vars	udata	0x120   
-I2C_ARRAY_TX	res	RX_ELEMENTS	; array to transmit to master
-I2C_ARRAY_RX 	res	TX_ELEMENTS 	; array to receive from master
+	cblock	0x120
+	Ser_In_Bytes		;Bytes in Ser_In_Buff
+	Ser_Out_Bytes		;Bytes in Ser_Out_Buff
+	Ser_In_InPtr
+	Ser_In_OutPtr
+	Ser_Out_InPtr
+	Ser_Out_OutPtr
+	Ser_In_Buff:20
+	Ser_Out_Buff:20
+	endc
 ;
 ;
 ;====================================================================================================
@@ -256,9 +271,9 @@ I2C_ARRAY_RX 	res	TX_ELEMENTS 	; array to receive from master
 ;=======================================================================================================
 ;
 	cblock	0x70
-	Param70		;Used by I2C
-	Param71		;Used by I2C
-	Param72		;Used by I2C
+	Param70	
+	Param71	
+	Param72	
 	Param73
 	Param74
 	Param75
@@ -274,12 +289,6 @@ I2C_ARRAY_RX 	res	TX_ELEMENTS 	; array to receive from master
 	Param7F
 	endc
 ;
-#Define	INDEX_I2C	Param70	;I2C Data Pointer
-#Define	TX_DataSize	Param71
-#Define	GFlags	Param72
-#Define	I2C_TXLocked	Param72,0	; Set/cleared by ISR, data is being sent
-#Define	I2C_RXLocked	Param72,1	; Set/cleared by ISR, data is being received
-#Define	I2C_NewRXData	Param72,2	; Set by ISR, The new data is here!
 ;
 ;=========================================================================================
 ;Conditions
@@ -288,32 +297,51 @@ HasISR	EQU	0x80	;used to enable interupts 0x80=true 0x00=false
 ;=========================================================================================
 ;==============================================================================================
 ; ID Locations
-	__idlocs	0x10A1
+	__idlocs	0x10d1
 ;
 ;==============================================================================================
 ; EEPROM locations (NV-RAM) 0x00..0x7F (offsets)
+;
+; default values
 	ORG	0xF000
-	de	I2C_ADDRESS	;nvI2CAddr
+;
+	de	kSysMode	;nvSysMode
+	de	kRS232_MasterAddr	;nvRS232_MasterAddr
+	de	kRS232_SlaveAddr	;nvRS232_SlaveAddr
+	de	kssFlags	;nvssFlags
+;
+; add any new params here
+;
 	de	0x00	;nvSysFlags
+;
+	ORG	0xF0FF
+	de	0x00	;Skip BootLoader
+;
 ; EEPROM locations (NV-RAM) 0x00..0x7F (offsets)
+;
 	cblock	0x0000
 ;
-	nvI2CAddr
+	nvSysMode
+	nvRS232_MasterAddr
+	nvRS232_SlaveAddr
+	nvssFlags
 	nvSysFlags
 ;
 	endc
 ;
-#Define	nvFirstParamByte	nvI2CAddr
+#Define	nvFirstParamByte	nvSysMode
 #Define	nvLastParamByte	nvSysFlags
 ;
 ;
 ;==============================================================================================
 ;============================================================================================
 ;
+BootLoaderStart	EQU	0x1E00
 ;
 	ORG	0x000	; processor reset vector
-	CLRF	STATUS
-	CLRF	PCLATH
+	movlp	BootLoaderStart
+	goto	BootLoaderStart
+ProgStartVector	CLRF	PCLATH
   	goto	start	; go to beginning of program
 ;
 ;===============================================================================================
@@ -415,8 +443,9 @@ IRQ_5_End:
 ;==============================================================================================
 ;==============================================================================================
 ;
-	include	F1847_Common.inc
-	include	I2C_SLAVE.inc
+	include <F1847_Common.inc>
+	include <SerBuff1938.inc>
+	include <RS232_Parse.inc>
 ;
 ;==============================================================================================
 ;
@@ -517,6 +546,7 @@ MainLoop	CLRWDT
 ;
 	include <ServoLib.inc>
 ;
+	if oldCode
 ;=========================================================================================
 ;=========================================================================================
 ; Parse the incoming data and put it where it belongs
@@ -723,9 +753,17 @@ I2C_DataSender_L2	MOVIW	FSR1++
 	GOTO	I2C_DataSender_L3
 	RETURN
 ;
+	endif
 ;=========================================================================================
 ;=========================================================================================
 ;
+;
+	org 0x800
+	include <SSC16PSCmds.inc>
+	include <ssInit.inc>
+;
+	org BootLoaderStart
+	include <BootLoader1847.inc>
 ;
 ;
 ;
