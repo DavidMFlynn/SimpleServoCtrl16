@@ -29,16 +29,6 @@ I2C_ADDRESS	EQU	0x34	; Slave address
 ; What happens next:
 ;   At power up the system LED will blink.
 ;
-;
-; Command:
-;	kServoPosCmd	0x80	;Position Command CMDSigTime
-;	kServoMaxSpd	0x90	;LSB is ServoMaxSpeed
-;	kServoAccel	0xA0	;LSB is ServoAccelValue
-;	kServoON	0xB0	;Set ServoActive
-;	kServoOFF	0xC0	;Clr ServoActive
-;	kServoMinTime	0xD0	;Minimum pulse time (900uS=1800)
-;	kServoMaxTime	0xE0	;Maximum pulse time (2100uS=4200)
-;
 ;====================================================================================================
 ;
 ;   Pin 1 (RA2/AN2) Address A2 (output)

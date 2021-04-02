@@ -38,41 +38,32 @@ kServoDwellTime	EQU	d'5000'	;2.5mS/Channel
 ;
 ;================================================================================================
 ;  Bank3 Ram 1A0h-1EFh 80 Bytes
-;
-	cblock	0x1A0
-	ServoMaxSpeed0_7:8		;0=no Accel, 1..255 counts/20mS
-	ServoMaxSpeed8_15:8
-	ServoAccelValue0_7:8		;1..8 counts/20mS squared
-	ServoAccelValue8_15:8
-	ServoCurSpeed0_7:8		;0=Stopped, MSb=Direction, 1..127
-	ServoCurSpeed8_15:8
-	endc
-;
-;================================================================================================
-;  Bank4 Ram 220h-26Fh 80 Bytes
-;
-	cblock	0x220
-	CMDServoIDX		;0..15, used by IdleServos
-	CMDSigTime0_7:10		;Commanded position
-	CMDSigTime8_15:10
-	MinTime0_7:10		;Minimum pulse time (900uS=1800)
-	MinTime8_15:10		;Minimum pulse time (900uS=1800)
-	endc
-;
-;================================================================================================
-;  Bank5 Ram 2A0h-2EFh 80 Bytes
-;
-	cblock	0x2A0
+; Linear data memory 0x2000 .. 0x29AF
+	cblock	0x20F0	;beginning of bank 3
+	ServoMaxSpeed:10		;0=no Accel, 1..255 counts/20mS
+	ServoAccelValue:10		;1..8 counts/20mS squared
+	ServoCurSpeed:10		;0=Stopped, MSb=Direction, 1..127
+	CMDSigTime:20		;Commanded position MinTime .. MaxTime
+; bank4 Ram 220h-26Fh 80 Bytes
+	ServoFlags:8		;4 bits per servo
+	ServoFlags2:8		;4 bits per servo
+	MinTime:20		;Minimum pulse time (900uS=1800)
+	MaxTime:20		;Maximum pulse time (2100uS=4200)
+; bank 5 Ram 2A0h-2EFh 80 Bytes
+	SigOutTime:20		;Current position
+	DwellTime:20
+	CMDServoIDX
 	ServoIDX		;Index 0..7
 	ServoCtlFlags	
-	ServoFlags:8		;4 bits per servo
 	CalcdDwell		;scratch var
 	CalcdDwellH
-	SigOutTime0_7:10		;Current position
-	SigOutTime8_15:10
-	DwellTime0_7:10		;Next dwell time
-	DwellTime8_15:10
+;  Bank6 Ram 320h-26Fh 80 Bytes
+	AccelRampLen:20
 	endc
+;
+;
+;================================================================================================
+;
 ;
 ; ServoCtlFlags Flag bits, ToDo at Next ISR:
 CyclePulseStart	EQU	0	;Start cycle banks 1 and 2
@@ -90,19 +81,7 @@ InPositionFlag8_15	EQU	5
 ServoOnBit8_15	EQU	6
 MovingFWD8_15	EQU	7
 ;
-;
-;================================================================================================
-;  Bank6 Ram 320h-26Fh 80 Bytes
-;
-	cblock	0x320
-	ServoFlags2:8		;4 bits per servo
-	MaxTime0_7:10		;Maximum pulse time (2100uS=4200)
-	MaxTime8_15:10		;Maximum pulse time (2100uS=4200)
-	AccelRampLen0_7:10
-	AccelRampLen8_15:10
-	endc
-;
-;ServoFlags2 Flag bits
+; ServoFlags2 Flag bits
 AccelComplete0_7	EQU	0
 AccelComplete8_15	EQU	4
 ;

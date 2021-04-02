@@ -1,8 +1,8 @@
 ;=========================================================================================
 ;
 ;    Filename:      SerialServoCmds.inc
-;    Date:          6/1/2018
-;    File Version:  1.1
+;    Date:          4/1/2021
+;    File Version:  1.0.0
 ;
 ;    Author:        David M. Flynn
 ;    Company:       Oxford V.U.E., Inc.
@@ -11,67 +11,34 @@
 ;
 ;=========================================================================================
 ; Notes:
-;  Command interpreter for SerialServo
+;  Command interpreter for Simple Servo Controller 16 Packet Serial
 ;
 ; History
-; 1.1    6/1/2018	All commands are here now.
-; 1.0    5/25/2018	Moved out of SerialServo.asm
+; 1.0.0  4/1/2021	Copied from SerialServo
 ;=========================================================================================
 ;
 kCmd_SetMode	EQU	0x81	;+1 data (SysMode), return ACK
 kCmd_GetMode	EQU	0x01
-kCmd_SetCmdPos	EQU	0x82	;+2 data (ssCmdPos), return ACK
+kCmd_SetCmdPos	EQU	0x82	;+3 data (ServoNum,CMDSigTime), return ACK
 kCmd_GetCmdPos	EQU	0x02
-kCmd_SetMaxI	EQU	0x83	;+1 data (ssMaxI), return ACK
-kCmd_GetMaxI	EQU	0x03
-kCmd_SetFFwd	EQU	0x84	;+2 data (ServoFastForward), return ACK
-kCmd_GetFFwd	EQU	0x04
-kCmd_SetFRev	EQU	0x85	;+2 data (ServoFastReverse), return ACK
-kCmd_GetFRev	EQU	0x05
-kCmd_SetMin_uS	EQU	0x86	;+2 data (ServoMin_uS), return ACK
+kCmd_SetAccel	EQU	0x83	;+2 data (ServoNum,ServoAccelValue), return ACK
+kCmd_GetAccel	EQU	0x03
+kCmd_SetServoEnable	EQU	0x84	;+2 data (ServoNum, Enable), return ACK
+kCmd_GetServoEnable	EQU	0x04
+kCmd_SetMaxSpeed	EQU	0x85	;+2 data (ServoNum,ServoMaxSpeed), return ACK
+kCmd_GetMaxSpeed	EQU	0x05
+kCmd_SetMin_uS	EQU	0x86	;+3 data (ServoNum,MinTime), return ACK
 kCmd_GetMin_uS	EQU	0x06
-kCmd_SetMax_uS	EQU	0x87	;+2 data (ServoMax_uS), return ACK
+kCmd_SetMax_uS	EQU	0x87	;+3 data (ServoNum,MaxTime), return ACK
 kCmd_GetMax_uS	EQU	0x07
-kCmd_SetRevDir	EQU	0x88	;+1 data (ssReverseDir), return ACK
-kCmd_GetRevDir	EQU	0x08
-kCmd_SetEnaOvrCur	EQU	0x89	;+1 data (ssEnableOverCur), return ACK
-kCmd_GetEnaOvrCur	EQU	0x09
 ;
-kCmd_SetStopCenter	EQU	0x8B	;+2 data (ServoStopCenter), return ACK
-kCmd_GetStopCenter	EQU	0x0B
-kCmd_SetSpeed	EQU	0x8C	;+1 data (ServoSpeed), return ACK
-kCmd_GetSpeed	EQU	0x0C
-kCmd_SetUseIdleCenter	EQU	0x8D	;+1 data (ssMode3IdleCenter), return ACK
-kCmd_GetUseIdleCenter	EQU	0x0D
-kCmd_SetDeadBand	EQU	0x8E	;+1 data (DeadBand), return ACK
-kCmd_GetDeadBand	EQU	0x0E
-kCmd_SetUseFastPWM	EQU	0x8F	;+1 data (ssEnableFastPWM), return ACK
-kCmd_GetUseFastPWM	EQU	0x0F
 ;
-kCmd_SetGripI	EQU	0xB1	;+1 data (ssGripI), return ACK
-kCmd_GetGripI	EQU	0x21
-kCmd_SetAuxConfig	EQU	0xB2	;+2 data (AuxNum,Value), return ACK
-kCmd_GetAuxConfig	EQU	0x22	;+1 data (AuxNum)
-kCmd_SetAuxNValue	EQU	0xB3	;+2 data (AuxNum,Value), return ACK
-kCmd_GetAuxNValue	EQU	0x23	;(AuxN,ValueL,ValueH)
-kCmd_SetEncoderOffset	EQU	0xB4	;+2 data (EncoderOffset), return ACK
-kCmd_GetEncoderOffset	EQU	0x24
-                       if UsePID
-kCmd_SetKp	EQU	0xB5	;+1 data (Kp), return ACK
-kCmd_GetKp	EQU	0x25
-kCmd_SetKi	EQU	0xB6	;+1 data (Ki), return ACK
-kCmd_GetKi	EQU	0x26
-kCmd_SetKd	EQU	0xB7	;+1 data (Kd), return ACK
-kCmd_GetKd	EQU	0x27
-                       endif
+kCmd_GetCurSpeed	EQU	0x91	;+1 Data (ServoNum) return ServoCurSpeed
+kCmd_GetCurPos	EQU	0x92	;+1 Data (ServoNum) Return SigOutTime
 ;
-kCmd_GetI	EQU	0x91	;return Cur_AN0
-kCmd_GetEnc	EQU	0x92	;return EncoderVal
-kCmd_GetEncAbs	EQU	0x93	;return EncoderAccum
 kCmd_SaveParams	EQU	0x94	;Save all eeprom params, return ACK
 kCmd_RestoreParams	EQU	0x95	;Copy to ram, return ACK
-kCmd_GetBattVolts	EQU	0x96	;return Cur_AN7
-kCmd_GetCalPot	EQU	0x97	;return Cur_AN4
+;
 kCmd_GetStatus	EQU	0x98	;return ssStatus
 kCmd_ReBoot	EQU	0x99	;ReBoot the controller
 kCmd_RunBootloader	EQU	0x9A	;Set EEPROM (0xFF) = 0xFF and reboot
@@ -81,7 +48,7 @@ kCmd_SetMasterAddr	EQU	0xA1	;+1 data, return a zero packet
 kCmd_SetSlaveAddr	EQU	0xA2	;+1 data, return a zero packet
 ;
 ;Special packet (0xDD, 0xDD, 0x01, 0x02, 0xAA, 0x00, 0x00, 0x00, checksum)
-kCmd_SendIDString	EQU	0xAA	; returns "DMFE Serial Servo\n"
+kCmd_SendIDString	EQU	0xAA	; returns "DMFE SSC16PS\n"
 ;
 ;=========================================================================================
 ;
@@ -115,19 +82,19 @@ HandleRXData_1	movlb	0	;bank 0
                        return                                        ;0x00 not used
                        bra                    Cmd_GetMode
                        bra                    Cmd_GetCmdPos
-                       goto                   Cmd_GetMaxI
-                       goto                   Cmd_GetFFwd
-                       goto                   Cmd_GetFRev
+                       goto                   Cmd_GetAccel
+                       goto                   Cmd_GetServoEnable
+                       goto                   Cmd_GetMaxSpeed
                        goto                   Cmd_GetMin_uS
                        goto                   Cmd_GetMax_uS
-                       goto                   Cmd_GetRevDir
-                       goto                   Cmd_GetEnaOvrCur       ;9
                        return
-                       goto                   Cmd_GetStopCenter
-                       goto                   Cmd_GetSpeed
-                       goto                   Cmd_GetUseIdleCenter
-                       goto                   Cmd_GetDeadBand
-                       goto                   Cmd_GetUseFastPWM
+                       return		       ;9
+                       return
+                       return
+                       return
+                       return
+                       return
+                       return
 ;
 Dispatcher_1           sublw                  0x80
                        SKPZ
@@ -139,19 +106,19 @@ Dispatcher_1           sublw                  0x80
                        return                                        ;0x80 not used
                        bra                    Cmd_SetMode
                        bra                    Cmd_SetCmdPos
-                       goto                   Cmd_SetMaxI
-                       goto                   Cmd_SetFFwd
-                       goto                   Cmd_SetFRev
+                       goto                   Cmd_SetAccel
+                       goto                   Cmd_SetServoEnable
+                       goto                   Cmd_SetMaxSpeed
                        goto                   Cmd_SetMin_uS
                        goto                   Cmd_SetMax_uS
-                       goto                   Cmd_SetRevDir
-                       goto                   Cmd_SetEnaOvrCur
                        return
-                       goto                   Cmd_SetStopCenter
-                       goto                   Cmd_SetSpeed
-                       goto                   Cmd_SetUseIdleCenter
-                       goto                   Cmd_SetDeadBand
-                       goto                   Cmd_SetUseFastPWM
+                       return
+                       return
+                       return
+                       return
+                       return
+                       return
+                       return
 ;
 ;Jump table for 0x20 to 0x27
 Dispatcher_2           movf                   Param78,W
@@ -159,50 +126,14 @@ Dispatcher_2           movf                   Param78,W
                        sublw                  0x20
                        SKPZ
                        bra                    Dispatcher_3
-                       btfsc                  Param78,3              ;>7?
                        return                                        ; Yes, oops
-                       movlw                  0x07
-                       andwf                  Param78,W
-                       brw
-                       return
-                       goto                   Cmd_GetGripI
-                       goto                   Cmd_GetAuxConfig
-                       goto                   Cmd_GetAuxNValue
-                       goto                   Cmd_GetEncoderOffset
-                       if UsePID
-                       goto                   Cmd_GetKp
-                       goto                   Cmd_GetKi
-                       goto                   Cmd_GetKd
-                       else
-                       return
-                       return
-                       return
-                       endif
 ;
 Dispatcher_3           movf                   Param78,W
                        andlw                  0xF0
                        sublw                  0xB0
                        SKPZ
                        bra                    Dispatcher_4
-                       btfsc                  Param78,3              ;>7?
                        return                                        ; Yes, oops
-                       movlw                  0x07
-                       andwf                  Param78,W
-                       brw
-                       return
-                       goto                   Cmd_SetGripI
-                       goto                   Cmd_SetAuxConfig
-                       goto                   Cmd_SetAuxNValue
-                       goto                   Cmd_SetEncoderOffset
-                       if UsePID
-                       goto                   Cmd_SetKp
-                       goto                   Cmd_SetKi
-                       goto                   Cmd_SetKd
-                       else
-                       return
-                       return
-                       return
-                       endif
 ;
 ;Jump table for 0x90 to 0x9F
 Dispatcher_4           movf                   Param78,W
@@ -214,13 +145,13 @@ Dispatcher_4           movf                   Param78,W
                        andwf                  Param78,W
                        brw
                        return                                        ;0x90 not used
-                       goto                   Cmd_GetI
-                       goto                   Cmd_GetEnc
-                       goto                   Cmd_GetEncAbs
+                       goto                   Cmd_GetCurSpeed
+                       goto                   Cmd_GetCurPos
+                       return
                        goto                   Cmd_SaveParams
                        goto                   Cmd_RestoreParams
-                       goto                   Cmd_GetBattVolts
-                       return                                        ;goto                   Cmd_GetCalPot
+                       return
+                       return                 
                        goto                   Cmd_GetStatus
                        reset                                         ;Cmd_ReBoot
                        goto                   Cmd_RunBootloader
@@ -957,20 +888,18 @@ IDString	brw
 	retlw	'E'
 	retlw	' '
 	retlw	'S'
-	retlw	'e'
-	retlw	'r'
-	retlw	'i'
-	retlw	'a'
-	retlw	'l'
-	retlw	' '
 	retlw	'S'
-	retlw	'e'
-	retlw	'r'
-	retlw	'v'
-	retlw	'o'
-	retlw	' '
-	retlw	'r'
 	retlw	'C'
+	retlw	'1'
+	retlw	'6'
+	retlw	'P'
+	retlw	'S'
+	retlw	' '
+	retlw	'v'
+	retlw	'1'
+	retlw	'.'
+	retlw	'0'
+	retlw	' '
 	retlw	'\n'
 	retlw	0x00
 ;

@@ -102,19 +102,13 @@ IRQ_Servo1_PulseOrDwell:
 	BCF	ServoCtlFlags,CyclePulseStart
 ; FSR1 = ServoFlags+ServoIDX
 	MOVF	ServoIDX,W
-	ADDLW	LOW ServoFlags
-	MOVWF	FSR1L
-	MOVLW	HIGH ServoFlags
-	MOVWF	FSR1H
+	LOADFSR1W	ServoFlags
 ;
 	BTFSS	INDF1,ServoOnBit0_7	;Is this servo active?
 	GOTO	IRQ_Servo1_InAct	; No
-; FSR0 = SigOutTime0_7 + ServoIDX * 2			
+; FSR0 = SigOutTime + ServoIDX * 2			
 	LSLF	ServoIDX,W	;Servo Idx*2
-	ADDLW	LOW SigOutTime0_7
-	MOVWF	FSR0L
-	MOVLW	HIGH SigOutTime0_7
-	MOVWF	FSR0H
+	LOADFSR0W	SigOutTime
 ; Set time to end pulse
 	MOVIW	FSR0++	;Put the pulse into the CCP reg.
 	ADDWF	CCPR1L,F
@@ -127,9 +121,9 @@ IRQ_Servo1_PulseOrDwell:
 	MOVWF	CalcdDwell
 	MOVLW	HIGH kServoDwellTimeA
 	MOVWF	CalcdDwellH
-	MOVIW	FSR0++	;SigOutTime0_7
+	MOVIW	FSR0++	;SigOutTime
 	SUBWF	CalcdDwell,F
-	MOVIW	FSR0++	;SigOutTime0_7+1
+	MOVIW	FSR0++	;SigOutTime+1
 	SUBWFB	CalcdDwellH,F
 ; Store calc'd dwell for later
 	LSLF	ServoIDX,W	;FSR0 = DwellTime0_7 + ServoIDX * 2
@@ -190,10 +184,7 @@ IRQ_Servo_Next	BCF	ServoCtlFlags,AddrChngDwell
 	INCF	ServoIDX,W
 	ANDLW	0x07
 	MOVWF	ServoIDX
-	ADDLW	LOW ServoFlags
-	MOVWF	FSR1L
-	MOVLW	HIGH ServoFlags
-	MOVWF	FSR1H
+	LOADFSR1W	ServoFlags
 ; Change Address
 	MOVLB	0x02
 	MOVF	LATA,W
@@ -241,19 +232,14 @@ IRQ_Servo2_PulseOrDwell:
 ; FSR1 = ServoFlags+ServoIDX
 	MOVLB	0x05	; bank 5
 	MOVF	ServoIDX,W
-	ADDLW	LOW ServoFlags
-	MOVWF	FSR1L
-	MOVLW	HIGH ServoFlags
-	MOVWF	FSR1H
+	LOADFSR1W	ServoFlags
 ;
 	BTFSS	INDF1,ServoOnBit8_15	;Is this servo active?
 	GOTO	IRQ_Servo2_InAct	; No
 ; FSR0 = SigOutTime8_15 + ServoIDX * 2		
 	LSLF	ServoIDX,W
-	ADDLW	LOW SigOutTime8_15
-	MOVWF	FSR0L
-	MOVLW	HIGH SigOutTime8_15
-	MOVWF	FSR0H
+	ADDLW	0x10
+	LOADFSR0W	SigOutTime
 ; Set time to end pulse
 	MOVIW	FSR0++	;Put the pulse into the CCP reg.
 	ADDWF	CCPR2L,F
@@ -338,16 +324,10 @@ IdleServos_Update	BTFSS	CMDServoIDX,3
 ;
 ;FSR0 = Command Position
 	LSLF	CMDServoIDX,W
-	ADDLW	LOW CMDSigTime0_7
-	MOVWF	FSR0L
-	MOVLW	HIGH CMDSigTime0_7
-	MOVWF	FSR0H
+	LOADFSR0W	CMDSigTime
 ;FSR1 = Current Position
 	LSLF	CMDServoIDX,W
-	ADDLW	LOW SigOutTime0_7
-	MOVWF	FSR1L
-	MOVLW	HIGH SigOutTime0_7
-	MOVWF	FSR1H
+	LOADFSR1W	SigOutTime
 ; Param7D:Param7C = (FSR0)-(FSR1) Cmd-Cur
 	MOVF	INDF1,W	;Cur, SigOutTime
 	SUBWF	INDF0,W	;Cmd
@@ -510,15 +490,12 @@ IdleServos_Accel_2	CALL	GetSpeed
 	SKPB		;new Cur>Max?
 	MOVF	Param79,W	; Yes, use max instead
 	MOVWF	Param78	;New Speed
-;FSR0 = CMDServoIDX*2 + AccelRampLen0_7
+;FSR0 = CMDServoIDX*2 + AccelRampLen
 	LSLF	CMDServoIDX,W	
-	ADDLW	LOW AccelRampLen0_7
-	MOVWF	FSR0L
-	MOVLW	HIGH AccelRampLen0_7
-	MOVWF	FSR0H
+	LOADFSR0W	AccelRampLen
 	MOVF	Param78,W
 	ADDWF	INDF0,F
-	INCF	FSR0L,F
+	addfsr	FSR0,1
 	CLRW
 	ADDWFC	INDF0,F
 	GOTO	SaveSpeed
@@ -543,10 +520,7 @@ AccelDone	CALL	SetFSR0ToServoFlags2
 ; Exit: FSR0 >> ServoCurSpeed
 ;
 SaveSpeed	MOVF	CMDServoIDX,W
-	ADDLW	LOW ServoCurSpeed0_7
-	MOVWF	FSR0L
-	MOVLW	HIGH ServoCurSpeed0_7
-	MOVWF	FSR0H
+	LOADFSR0W	ServoCurSpeed
 	MOVF	Param78,W
 	MOVWF	INDF0
 	RETURN
@@ -558,10 +532,7 @@ SaveSpeed	MOVF	CMDServoIDX,W
 ; Exit: FSR0 >> ServoCurSpeed, W=ServoCurSpeed
 ;
 GetSpeed	MOVF	CMDServoIDX,W
-	ADDLW	LOW ServoCurSpeed0_7
-	MOVWF	FSR0L
-	MOVLW	HIGH ServoCurSpeed0_7
-	MOVWF	FSR0H
+	LOADFSR0W	ServoCurSpeed
 	MOVF	INDF0,W
 	RETURN
 ;
@@ -572,10 +543,7 @@ GetSpeed	MOVF	CMDServoIDX,W
 ; Exit: FSR0 >> ServoMaxSpeed, W=ServoMaxSpeed
 ;
 GetMaxSpeed	MOVF	CMDServoIDX,W
-	ADDLW	LOW ServoMaxSpeed0_7
-	MOVWF	FSR0L
-	MOVLW	HIGH ServoMaxSpeed0_7
-	MOVWF	FSR0H
+	LOADFSR0W	ServoMaxSpeed
 	MOVF	INDF0,W
 	RETURN
 ;
@@ -586,10 +554,7 @@ GetMaxSpeed	MOVF	CMDServoIDX,W
 ; Exit: FSR0 >> ServoAccelValue, W=ServoAccelValue
 ;
 GetAccelValue	MOVF	CMDServoIDX,W
-	ADDLW	LOW ServoAccelValue0_7
-	MOVWF	FSR0L
-	MOVLW	HIGH ServoAccelValue0_7
-	MOVWF	FSR0H
+	LOADFSR0W	ServoAccelValue
 	MOVF	INDF0,W
 	RETURN
 ;
@@ -601,10 +566,7 @@ GetAccelValue	MOVF	CMDServoIDX,W
 ;
 SetFSR0ToServoFlags2	MOVF	CMDServoIDX,W
 	ANDLW	0x07
-	ADDLW	LOW ServoFlags2
-	MOVWF	FSR0L
-	MOVLW	HIGH ServoFlags2
-	MOVWF	FSR0H
+	LOADFSR0W	ServoFlags2
 	RETURN
 ;
 ;=========================================================================================
@@ -616,10 +578,7 @@ SetFSR0ToServoFlags2	MOVF	CMDServoIDX,W
 ;
 SetFSR0ToServoFlags	MOVF	CMDServoIDX,W
 	ANDLW	0x07
-	ADDLW	LOW ServoFlags
-	MOVWF	FSR0L
-	MOVLW	HIGH ServoFlags
-	MOVWF	FSR0H
+	LOADFSR0W	ServoFlags
 	RETURN
 ;
 ;=========================================================================================
@@ -652,7 +611,7 @@ StartServos	MOVLB	0x02	; bank 2
 ;
 ;
 ServoInit16	CLRW
-	LOADFSR0W	ServoMaxSpeed0_7
+	LOADFSR0W	ServoMaxSpeed
 ;ServoMaxSpeed 0..15
 	MOVLW	DefaultMaxSpeed
 	CALL	Store16Times
@@ -665,7 +624,7 @@ ServoInit16	CLRW
 ;
 ; Set Command position to center
 	CLRW
-	LOADFSR0W	CMDSigTime0_7
+	LOADFSR0W	CMDSigTime
 	MOVLW	LOW kCenterPulseWidth
 	MOVWF	Param78
 	MOVLW	HIGH kCenterPulseWidth
@@ -701,7 +660,7 @@ ServoInit16	CLRW
 	CALL	StoreWord16Times
 ;MaxTime 0..15
 	CLRW
-	LOADFSR0W	MaxTime0_7
+	LOADFSR0W	MaxTime
 	MOVLW	LOW kMaxPulseWidth
 	MOVWF	Param78
 	MOVLW	HIGH kMaxPulseWidth
@@ -741,29 +700,20 @@ StartMotion	ANDLW	0x0F
 	MOVWF	Param78
 ; Copy 7D:7C to CMDSigTime
 	LSLF	Param78,W	;x2, 0,2,4..30
-	ADDLW	LOW CMDSigTime0_7
-	MOVWF	FSR0L
-	MOVLW	HIGH CMDSigTime0_7
-	MOVWF	FSR0H
+	LOADFSR0W	CMDSigTime
 	MOVF	Param7C,W
 	MOVWI	FSR0++
 	MOVF	Param7D,W
 	MOVWI	FSR0++
 ; Set ServoCurSpeed to 1 (minimum)
 	MOVF	Param78,W
-	ADDLW	LOW ServoCurSpeed0_7
-	MOVWF	FSR0L
-	MOVLW	HIGH ServoCurSpeed0_7
-	MOVWF	FSR0H
+	LOADFSR0W	ServoCurSpeed
 	MOVLW	0x01
 	MOVWF	INDF0
 ; Clear the In-Position Flag
 	MOVF	Param78,W
 	ANDLW	0x07
-	ADDLW	LOW ServoFlags
-	MOVWF	FSR0L
-	MOVLW	HIGH ServoFlags
-	MOVWF	FSR0H
+	LOADFSR0W	ServoFlags
 	BTFSS	Param78,3
 	BCF	INDF0,InPositionFlag0_7
 	BTFSC	Param78,3
@@ -776,20 +726,14 @@ StartMotion	ANDLW	0x0F
 ; Clear the AccelComplete Flag
 	MOVF	Param78,W
 	ANDLW	0x07
-	ADDLW	LOW ServoFlags2
-	MOVWF	FSR0L
-	MOVLW	HIGH ServoFlags2
-	MOVWF	FSR0H
+	LOADFSR0W	ServoFlags2
 	BTFSS	Param78,3
 	BCF	INDF0,AccelComplete0_7
 	BTFSC	Param78,3
 	BCF	INDF0,AccelComplete8_15
 ; Clear AccelRampLen
 	LSLF	Param78,W	;x2, 0,2,4..30
-	ADDLW	LOW AccelRampLen0_7
-	MOVWF	FSR0L
-	MOVLW	HIGH AccelRampLen0_7
-	MOVWF	FSR0H
+	LOADFSR0W	AccelRampLen
 	CLRW
 	MOVWI	FSR0++
 	MOVWI	FSR0++
@@ -957,13 +901,10 @@ ClampInt_tooHigh	MOVLW	low kMaxPulseWidth
 ; Exit: Param7D:Param7C=ClampInt(Param7D:Param7C,(MinTime0_7+Param78),(MaxTime0_7+Param78))
 ; Ram used: Param78, Param7C, Param7D, FSR0
 ;
-ClampMinMax	MOVWF	Param78
-	INCF	Param78,W
-	ADDLW	LOW MaxTime0_7
-	MOVWF	FSR0L
-	MOVLW	HIGH MaxTime0_7
-	MOVWF	FSR0H
-	MOVIW	FSR0--	;MaxTime0_7+Offset+1
+ClampMinMax	MOVWF	Param78	;ServoNum * 2
+	INCF	Param78,W	; MSB index
+	LOADFSR0W	MaxTime
+	MOVIW	FSR0--	;MaxTime+Offset+1
 	SUBWF	Param7D,W	;7D-kMaxPulseWidth
 	SKPNB		;7D<Max?
 	GOTO	ClampMinMax_1	; Yes
@@ -978,11 +919,8 @@ ClampMinMax	MOVWF	Param78
 	RETURN		; Yes
 ;
 ClampMinMax_1	INCF	Param78,W
-	ADDLW	LOW MinTime0_7
-	MOVWF	FSR0L
-	MOVLW	HIGH MinTime0_7
-	MOVWF	FSR0H
-	MOVIW	FSR0--	;MinTime0_7+Offset+1
+	LOADFSR0W	MinTime
+	MOVIW	FSR0--	;MinTime+Offset+1
 	SUBWF	Param7D,W	;7D-kMinPulseWidth
 	SKPNB		;7D<Min?
 	GOTO	ClampMinMax_too	; Yes
