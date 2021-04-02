@@ -37,26 +37,34 @@ kServoAddrTime	EQU	d'500'	;250uS
 kServoDwellTime	EQU	d'5000'	;2.5mS/Channel
 ;
 ;================================================================================================
-;  Bank3 Ram 1A0h-1EFh 80 Bytes
-; Linear data memory 0x2000 .. 0x29AF
+; Linear data memory 0x2000 .. 0x29AF access using FSR
 	cblock	0x20F0	;beginning of bank 3
+;  Bank3 Ram 1A0h-1EFh 80 Bytes
 	ServoMaxSpeed:10		;0=no Accel, 1..255 counts/20mS
 	ServoAccelValue:10		;1..8 counts/20mS squared
 	ServoCurSpeed:10		;0=Stopped, MSb=Direction, 1..127
 	CMDSigTime:20		;Commanded position MinTime .. MaxTime
 ; bank4 Ram 220h-26Fh 80 Bytes
-	ServoFlags:8		;4 bits per servo
-	ServoFlags2:8		;4 bits per servo
 	MinTime:20		;Minimum pulse time (900uS=1800)
 	MaxTime:20		;Maximum pulse time (2100uS=4200)
+	ServoFlags:8		;4 bits per servo
+	ServoFlags2:8		;4 bits per servo
 ; bank 5 Ram 2A0h-2EFh 80 Bytes
 	SigOutTime:20		;Current position
 	DwellTime:20
+	endc
+;
+	cblock	0x2E0	;locate after DwellTime
+; these are in bank 5 because the CCP1 and CCP2 CONs are here, accessed w/o FSR
 	CMDServoIDX
 	ServoIDX		;Index 0..7
 	ServoCtlFlags	
 	CalcdDwell		;scratch var
 	CalcdDwellH
+; there are .11 bytes left in bank 5
+	endc
+;
+	cblock	0x21E0	;beginning of bank 6
 ;  Bank6 Ram 320h-26Fh 80 Bytes
 	AccelRampLen:20
 	endc

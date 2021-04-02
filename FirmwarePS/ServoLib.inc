@@ -1,7 +1,7 @@
 ;====================================================================================================
 ;
 ;    Filename:      ServoLib.inc
-;    Date:          11/16/2015
+;    Date:          4/2/2021
 ;    File Version:  1.0d1
 ;    
 ;    Author:        David M. Flynn
@@ -14,25 +14,25 @@
 ;
 ;    History:
 ;
-; 1.0d1   11/16/2015	First rev'd version.
+; 1.0d1   4/2/2021	Copied from I2C Version
 ;
 ;====================================================================================================
-; PIC16F1847 on SimpleServo16 PCB
+; PIC16F1847 on SimpleServo16 PCB Packet Serial Version
 ;
 ;   Pin 1 (RA2/AN2) Address A2 (output)
 ;   Pin 2 (RA3/AN3) Enable Servos 0..7 (active low output)
 ;   Pin 3 (RA4/AN4) Enable Servos 8..15 (active low output)
-;   Pin 4 (RA5/MCLR*) N.C.
+;   Pin 4 (RA5/MCLR*) Vpp
 ;   Pin 5 (GND) Ground
-;   Pin 6 (RB0) SW3/LED3 (Active Low Input/Output)
-;   Pin 7 (RB1/AN11/SDA1) I2C Data
-;   Pin 8 (RB2/AN10/RX) SW2/LED2 (Active Low Input/Output)
+;   Pin 6 (RB0) SW1/LED1 (Active Low Input/Output) (System LED)
+;   Pin 7 (RB1/AN11/SDA1) RX Data
+;   Pin 8 (RB2/AN10/RX)   TX Data 
 ;   Pin 9 (RB3/CCP1) Pulse output for Servos 0..7
 ;
-;   Pin 10 (RB4/AN8/SLC1) I2C Clock
-;   Pin 11 (RB5/AN7)  SW1/LED1 (Active Low Input/Output)(System LED)
-;   Pin 12 (RB6/AN5/CCP2) N.C.
-;   Pin 13 (RB7/AN6) N.C.
+;   Pin 10 (RB4/AN8/SLC1) SW2/LED2 (Active Low Input/Output)
+;   Pin 11 (RB5/AN7)  SW3/LED3 (Active Low Input/Output)
+;   Pin 12 (RB6/AN5/CCP2) ICSPCLK
+;   Pin 13 (RB7/AN6) ICSPDAT
 ;   Pin 14 (Vcc) +5 volts
 ;   Pin 15 (RA6) N.C.
 ;   Pin 16 (RA7/CCP2) Pulse output for Servos 8..15
@@ -127,8 +127,7 @@ IRQ_Servo1_PulseOrDwell:
 	SUBWFB	CalcdDwellH,F
 ; Store calc'd dwell for later
 	LSLF	ServoIDX,W	;FSR0 = DwellTime0_7 + ServoIDX * 2
-	ADDLW	LOW DwellTime0_7
-	MOVWF	FSR0L
+	LOADFSR0W	DwellTime
 	MOVF	CalcdDwell,W
 	MOVWI	FSR0++
 	MOVF	CalcdDwellH,W
@@ -155,10 +154,7 @@ IRQ_Servo1_InAct	MOVLW	LOW kServoDwellTimeA
 ;
 ; output went low so this cycle is done, set dwell time
 IRQ_Servo1_OL	LSLF	ServoIDX,W	; FSR0 = DwellTime0_7 + ServoIDX * 2
-	ADDLW	LOW DwellTime0_7
-	MOVWF	FSR0L
-	MOVLW	HIGH DwellTime0_7
-	MOVWF	FSR0H
+	LOADFSR0W	DwellTime
 ;  Copy dwell to ccpr
 	MOVIW	FSR0++
 	ADDWF	CCPR1L,F
@@ -186,14 +182,14 @@ IRQ_Servo_Next	BCF	ServoCtlFlags,AddrChngDwell
 	MOVWF	ServoIDX
 	LOADFSR1W	ServoFlags
 ; Change Address
-	MOVLB	0x02
+	MOVLB	0x02	;bank 2
 	MOVF	LATA,W
 	ANDLW	b'11111000'
-	MOVLB	0x05
+	MOVLB	0x05	;bank 5
 	IORWF	ServoIDX,W
-	MOVLB	0x02
+	MOVLB	0x02	;bank 2
 	MOVWF	LATA
-	MOVLB	0x05
+	MOVLB	0x05	;bank 5
 ;
 	MOVLW	CCPCON_Set	;Clr CCP1 to go high on next match
 	BTFSS	INDF1,ServoOnBit0_7	;Is the next servo active?
@@ -257,9 +253,10 @@ IRQ_Servo2_PulseOrDwell:
 	MOVIW	FSR0++	;SigOutTime8_15+1
 	SUBWFB	CalcdDwellH,F
 ; Store calc'd dwell for later
-	LSLF	ServoIDX,W	;FSR0 = DwellTime8_15 + ServoIDX * 2
-	ADDLW	LOW DwellTime8_15
-	MOVWF	FSR0L
+	LSLF	ServoIDX,W
+	ADDLW	0x10
+	LOADFSR0W	DwellTime	;FSR0 = DwellTime + ServoIDX * 2 + 0x10
+;
 	MOVF	CalcdDwell,W
 	MOVWI	FSR0++
 	MOVF	CalcdDwellH,W
@@ -277,11 +274,10 @@ IRQ_Servo2_InAct	MOVLW	LOW kServoDwellTimeA
 	GOTO	IRQ_Servo2_IntOnly
 ;
 ; output went low so this cycle is done, set dwell time
-IRQ_Servo2_OL	LSLF	ServoIDX,W	; FSR0 = DwellTime8_15 + ServoIDX * 2
-	ADDLW	LOW DwellTime8_15
-	MOVWF	FSR0L
-	MOVLW	HIGH DwellTime8_15
-	MOVWF	FSR0H
+IRQ_Servo2_OL	LSLF	ServoIDX,W
+	ADDLW	0x10
+	LOADFSR0W	DwellTime	;FSR0 = DwellTime + ServoIDX * 2 + 0x10
+;
 ; Copy dwell to ccpr
 	MOVIW	FSR0++
 	ADDWF	CCPR2L,F
@@ -301,7 +297,7 @@ IRQ_Servo2_End	RETURN
 ; Servo motion control
 ; Call from main loop
 ;
-IdleServos	MOVLB	0x04	; bank 4
+IdleServos	MOVLB	0x05	; bank 5
 	CALL	SetFSR0ToServoFlags
 	BTFSC	CMDServoIDX,3
 	GOTO	IdleServos8_15
@@ -393,12 +389,10 @@ IdleServos_DisInt	bcf	INTCON,GIE
 	GOTO	IdleServos_DisInt
 ;
 ;FSR1 = Current Position
-	MOVLB	0x04
+	MOVLB	0x05	;bank5
 	LSLF	CMDServoIDX,W
-	ADDLW	LOW SigOutTime0_7
-	MOVWF	FSR1L
-	MOVLW	HIGH SigOutTime0_7
-	MOVWF	FSR1H
+	LOADFSR1W	SigOutTime
+;
 	MOVF	Param7C,W	;SigOutTime
 	MOVWI	FSR1++
 	MOVF	Param7D,W
@@ -458,7 +452,7 @@ IdleServos_Next	INCF	CMDServoIDX,W
 ;=========================================================================================
 ;Do Accel
 ;
-; Entry: Bank 4, CMDServoIDX
+; Entry: Bank 5, CMDServoIDX
 ; Exit:
 ; Ram Used: Param78, Param79, FSR0
 ;
@@ -503,7 +497,7 @@ IdleServos_Accel_2	CALL	GetSpeed
 ;========================================
 ; Set AccelComplete flag for servo (CMDServoIDX)
 ;
-; Entry: Bank 4
+; Entry: Bank 5
 ; Exit: FSR0 >> ServoFlags2
 ;
 AccelDone	CALL	SetFSR0ToServoFlags2
@@ -516,7 +510,7 @@ AccelDone	CALL	SetFSR0ToServoFlags2
 ;==========================================
 ; Save speed Param78 to ServoCurSpeed for servo (CMDServoIDX)
 ;
-; Entry: Bank 4, Param78 = Speed
+; Entry: Bank 5, Param78 = Speed
 ; Exit: FSR0 >> ServoCurSpeed
 ;
 SaveSpeed	MOVF	CMDServoIDX,W
@@ -528,7 +522,7 @@ SaveSpeed	MOVF	CMDServoIDX,W
 ;==========================================
 ; Get ServoCurSpeed for servo (CMDServoIDX)
 ;
-; Entry: Bank 4
+; Entry: Bank 5
 ; Exit: FSR0 >> ServoCurSpeed, W=ServoCurSpeed
 ;
 GetSpeed	MOVF	CMDServoIDX,W
@@ -539,7 +533,7 @@ GetSpeed	MOVF	CMDServoIDX,W
 ;==========================================
 ; Get ServoMaxSpeed for servo (CMDServoIDX)
 ;
-; Entry: Bank 4
+; Entry: Bank 5
 ; Exit: FSR0 >> ServoMaxSpeed, W=ServoMaxSpeed
 ;
 GetMaxSpeed	MOVF	CMDServoIDX,W
@@ -550,7 +544,7 @@ GetMaxSpeed	MOVF	CMDServoIDX,W
 ;==========================================
 ; Get ServoAccelValue for servo (CMDServoIDX)
 ;
-; Entry: Bank 4
+; Entry: Bank 5
 ; Exit: FSR0 >> ServoAccelValue, W=ServoAccelValue
 ;
 GetAccelValue	MOVF	CMDServoIDX,W
@@ -561,7 +555,7 @@ GetAccelValue	MOVF	CMDServoIDX,W
 ;=========================================================================================
 ; Point FRS0 at ServoFlags2
 ;
-; Entry: Bank 4
+; Entry: Bank 5
 ; Exit: FSR0 >> ServoFlags2
 ;
 SetFSR0ToServoFlags2	MOVF	CMDServoIDX,W
@@ -572,7 +566,7 @@ SetFSR0ToServoFlags2	MOVF	CMDServoIDX,W
 ;=========================================================================================
 ; Point FRS0 at ServoFlags
 ;
-; Entry: Bank 4
+; Entry: Bank 5
 ; Exit: FSR0 >> ServoFlags
 ;
 ;
@@ -636,16 +630,20 @@ ServoInit16	CLRW
 	MOVLW	HIGH kMinPulseWidth
 	MOVWF	Param79
 	CALL	StoreWord16Times
+;MaxTime 0..15
+	MOVLW	LOW kMaxPulseWidth
+	MOVWF	Param78
+	MOVLW	HIGH kMaxPulseWidth
+	MOVWF	Param79
+	CALL	StoreWord16Times
 ; Set ServoFlags
-	CLRW
-	LOADFSR0W	ServoFlags
 ;
 	MOVLW	DefaultSFlags
 	CALL	Store8Times
 ;
 ; Set current position to center 
 	CLRW
-	LOADFSR0W	SigOutTime0_7
+	LOADFSR0W	SigOutTime
 ; SigOutTime 0..15
 	MOVLW	LOW kCenterPulseWidth
 	MOVWF	Param78
@@ -656,14 +654,6 @@ ServoInit16	CLRW
 	MOVLW	LOW kServoDwellTime
 	MOVWF	Param78
 	MOVLW	HIGH kServoDwellTime
-	MOVWF	Param79
-	CALL	StoreWord16Times
-;MaxTime 0..15
-	CLRW
-	LOADFSR0W	MaxTime
-	MOVLW	LOW kMaxPulseWidth
-	MOVWF	Param78
-	MOVLW	HIGH kMaxPulseWidth
 	MOVWF	Param79
 ; Fall thu to StoreWord16Times
 ;
@@ -739,6 +729,7 @@ StartMotion	ANDLW	0x0F
 	MOVWI	FSR0++
 	RETURN
 ;
+	if oldCode
 ;=========================================================================================
 ; Servo test
 TestServoLib	MOVLB	0x05
@@ -850,6 +841,7 @@ STest4_1	MOVLW	HIGH d'2200'	;1900 uS
 ;
 S_Text_End4:
 	RETURN
+	endif
 ;
 ;=========================================================================================
 ; ClampInt(Param7D:Param7C,kMinPulseWidth,kMaxPulseWidth)

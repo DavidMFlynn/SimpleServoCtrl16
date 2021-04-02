@@ -2,8 +2,8 @@
 ; Commonly used routines PIC16F1847 version
 ;
 ;    Filename:      F1847 Common.inc
-;    Date:          11/16/2013
-;    File Version:  1.0
+;    Date:          4/6/2019
+;    File Version:  1.0.2
 ;
 ;    Author:        David M. Flynn
 ;    Company:       Oxford V.U.E., Inc.
@@ -13,6 +13,9 @@
 ;=========================================================================================
 ;    History:
 ;
+; 1.0.2  4/6/2019	Fixes to EERead/EEwrite
+; 1.0.2 2/16/2019	Fix: added FSR0H to DecTimer.
+; 1.0.1 11/21/2015	Updates DecTimer.
 ; 1.0   11/16/2013	Updated from F648A Common.inc
 ;
 ;=========================================================================================
@@ -26,6 +29,7 @@
 ; DecTimer3
 ; DecTimer2
 ; DecTimer1
+; DecTimer	(0+0) High byte of counter address in W
 ;
 ; TestT4_Zero	Test for 16 bit timers = zero
 ; TestT3_Zero	If Timer is zero return Z flag,1 else Z=0
@@ -87,7 +91,7 @@ ClearRam_2	MOVLW	0x50	;Clear 120h-16Fh, 80 bytes
 ClearRam_L2	CLRF	INDF0
 	INCF	FSR0,F
 	DECFSZ	Param7F,F
-	GOTO	ClearRam_L2
+	bra	ClearRam_L2
 	RETURN
 ;
 	if UseEEParams
@@ -97,17 +101,16 @@ ClearRam_L2	CLRF	INDF0
 CopyToRam	MOVLW	nvFirstParamByte
 	MOVWF	EEAddrTemp
 	MOVLW	FirstRAMParam
-	MOVWF	FSR0
+	MOVWF	FSR0L
 	CLRF	FSR0H
 CopyToRam_L1	CALL	EERead
-	MOVWF	INDF0
-	MOVLW	LastRAMParam
-	SUBWF	FSR0,W
-	SKPNZ
-	RETURN
-	INCF	FSR0,F
+	movwi	FSR0++
 	INCF	EEAddrTemp,F
-	GOTO	CopyToRam_L1
+	MOVLW	LastRAMParam+1
+	SUBWF	FSR0L,W
+	SKPZ
+	BRA	CopyToRam_L1
+	RETURN
 ;
 ;===========================================================================
 ; copy ram to param memory
@@ -115,80 +118,104 @@ CopyToRam_L1	CALL	EERead
 SaveParams	MOVLW	nvFirstParamByte
 	MOVWF	EEAddrTemp
 	MOVLW	FirstRAMParam
-	MOVWF	FSR0
+	MOVWF	FSR0L
 	CLRF	FSR0H
-SaveParams_L1	MOVF	INDF0,W
+SaveParams_L1	moviw	FSR0++
 	MOVWF	EEDataTemp
 	CALL	EEWrite
-	MOVLW	LastRAMParam	;last byte
-	SUBWF	FSR0,W
-	SKPNZ
-	RETURN
-	INCF	FSR0,F
 	INCF	EEAddrTemp,F
-	GOTO	SaveParams_L1
+	MOVLW	LastRAMParam+1	;last byte
+	SUBWF	FSR0L,W
+	SKPZ
+	BRA	SaveParams_L1
+	RETURN
 ;
 	endif
 ;=====================================================================================================
 ;=========================================================================================================
 ; Decrement routine for 16 bit timers
+; Set FSR0H before calling these routines.
 ;
 DecTimer4	movlw	Timer4Hi
-	goto	DecTimer
+	bra	DecTimer
 DecTimer3	movlw	Timer3Hi
-	goto	DecTimer
+	bra	DecTimer
 DecTimer2	movlw	Timer2Hi
-	goto	DecTimer
+	bra	DecTimer
 DecTimer1	movlw	Timer1Hi
 ;DecTimer
 ; entry: FSR=Timer(n)Hi
-DecTimer	MOVWF	FSR0
-	MOVF	INDF0,W	;TimerNHi
-	DECF	FSR0,F
+DecTimer	MOVWF	FSR0L
+	movlw	High Timer4Hi
+	movwf	FSR0H
+	MOVIW	FSR0--	;TimerNHi
 	IORWF	INDF0,W	;TimerNLo
 	SKPNZ
 	RETURN
 	MOVLW	0x01
 	SUBWF	INDF0,F	;TimerNLo
-	INCF	FSR0,F
-	BTFSS	STATUS,C
-	DECF	INDF0,F	;TimerNHi
+	INCF	FSR0L,F
+	CLRW
+	SUBWFB	INDF0,F	;TimerNHi
 	RETURN
 ;
 ;==============================================================================================
 ; Test for 16 bit timers = zero
 ;If Timer is zero return Z flag,1 else Z=0
 ;
-TestT4_Zero	movf	Timer4Lo,W
+TestT4_Zero	movlb	0
+	movf	Timer4Lo,W
 	iorwf	Timer4Hi,W
 	return
 ;
-TestT3_Zero	movf	Timer3Lo,W
+TestT3_Zero	movlb	0
+	movf	Timer3Lo,W
 	iorwf	Timer3Hi,W
 	return
 ;
-TestT2_Zero	movf	Timer2Lo,W
+TestT2_Zero	movlb	0
+	movf	Timer2Lo,W
 	iorwf	Timer2Hi,W
 	return
 ;
-TestT1_Zero	movf	Timer1Lo,W
+TestT1_Zero	movlb	0
+	movf	Timer1Lo,W
 	iorwf	Timer1Hi,W
 	return	
 ;
+	if oldCode
 ;======================================================================================
-;Delay uS    1 cycle = 1uS, 8Mhz clock version
+;Delay uS    1 cycle = 1uS, 8MHz clock version
 ; RAM used: Param77
 ; Calls:(0) none
+;
 Delay10uS	MOVLW	0x05	;(2*3+5)/2=10
-	GOTO	DelayWuS
+	bra	DelayWuS
 Delay100uS	MOVLW	d'65'	;(28*3+5)/2=100
-	GOTO	DelayWuS
+	bra	DelayWuS
 Delay40uS	MOVLW	d'25'	;(11*3+5)=40
 DelayWuS	MOVWF	Param77
 DelayWuS_Loop	DECFSZ	Param77,F
-	GOTO	DelayWuS_Loop
+	bra	DelayWuS_Loop
 	RETURN
 ;
+	endif
+;======================================================================================
+;Delay uS    1 cycle = .125uS, 32MHz clock version
+; RAM used: Param77
+; Calls:(0) none
+;
+Delay10uS	MOVLW	0x05	;(2*3+5)/2=10
+	bra	DelayWuS
+Delay100uS	MOVLW	d'65'	;(28*3+5)/2=100
+	bra	DelayWuS
+Delay40uS	MOVLW	d'25'	;(11*3+5)=40
+DelayWuS	MOVWF	Param77
+DelayWuS_Loop	nop
+	nop
+	DECFSZ	Param77,F
+	bra	DelayWuS_Loop
+	RETURN
 ;==============================================================================================
 ; Read EEPROM
 ; entry: EEPROM address to read in W
@@ -206,6 +233,8 @@ EEReadW	movwf	EEAddrTemp
 EERead	movf	EEAddrTemp,W
 	MOVLB	0x03	;Bank 3
 	movwf	EEADR	;Address to read
+	bcf	EECON1,CFGS	;not config mem
+	bcf	EECON1,EEPGD	;Data memory
 	bsf	EECON1,RD
 	movf	EEDAT,W	;W=EEDAT
 	MOVLB	0x00	;Bank 0
@@ -227,27 +256,26 @@ EEWriteW	movwf	EEAddrTemp
 ;        Bank 0 selected
 ; exit: Bank 0 selected
 ;
-EEWrite	
-	MOVLW	EEAddrTemp
-	MOVWF	FSR0
-	CLRF	FSR0H
+EEWrite	MOVF	EEAddrTemp,W
 	MOVLB	0x03	;Bank 3
-	MOVF	INDF0,W	;EEAddrTemp
 	movwf	EEADR	;Address to write
-	INCF	FSR0,F
-	movf	INDF0,W	;EEDataTemp
+	movlb	0x00	; bank 0
+	movf	EEDataTemp,W
+	movlb	0x03
 	movwf	EEDAT
+	bcf	EECON1,CFGS	;not config mem
+	bcf	EECON1,EEPGD	;Data memory
 	bsf	EECON1,WREN
 	bcf	INTCON,GIE	;Disale Ints
 	btfsc	INTCON,GIE
-	goto	$-2
+	bra	$-2
 	movlw	0x55
 	movwf	EECON2	;write 55
 	movlw	0xAA
 	movwf	EECON2	;write AA
 	bsf	EECON1,WR
 EEWriteLoop	btfsc	EECON1,WR	
-	goto	EEWriteLoop
+	bra	EEWriteLoop
 	bcf	EECON1,WREN
 	bsf	INTCON,GIE
 	MOVLB	0x00	;Bank 0

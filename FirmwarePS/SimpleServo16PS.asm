@@ -30,6 +30,7 @@ I2C_ADDRESS	EQU	0x34	; Slave address
 ;   At power up the system LED will blink.
 ;
 ;====================================================================================================
+; PIC16F1847 on SimpleServo16 PCB Packet Serial Version
 ;
 ;   Pin 1 (RA2/AN2) Address A2 (output)
 ;   Pin 2 (RA3/AN3) Enable Servos 0..7 (active low output)
@@ -102,6 +103,8 @@ kRS232SyncByteValue	EQU	0xDD
 kRS232_MasterAddr	EQU	0x01	;Master's Address
 kRS232_SlaveAddr	EQU	0x02	;This Slave's Address
 kSysMode	EQU	.0	;Default Mode
+kMaxMode	EQU	.0	;Last mode
+kssFlags	EQU	.0
 ;
 #Define	_C	STATUS,C
 #Define	_Z	STATUS,Z
@@ -164,6 +167,7 @@ PR2_Value	EQU	.125
 ;
 LEDTIME	EQU	d'100'	;1.00 seconds
 LEDErrorTime	EQU	d'10'
+LEDFastTime	EQU	d'20'
 ;
 T1CON_Val	EQU	b'00000001'	;PreScale=1,Fosc/4,Timer ON
 TMR1L_Val	EQU	0x3C	; -2500 = 2.5 mS, 400 steps/sec
@@ -174,6 +178,25 @@ TMR1H_Val	EQU	0xF6
 ;
 ;TMR1L_Val	EQU	0x8F	; -625 = 0.625 mS, 1600 steps/sec
 ;TMR1H_Val	EQU	0xFD
+;
+;TXSTA_Value	EQU	b'00100000'	;8 bit, TX enabled, Async, low speed
+TXSTA_Value	EQU	b'00100100'	;8 bit, TX enabled, Async, high speed
+RCSTA_Value	EQU	b'10010000'	;RX enabled, 8 bit, Continious receive
+BAUDCON_Value	EQU	b'00001000'	;BRG16=1
+; 8MHz clock low speed (BRGH=0,BRG16=1)
+;Baud_300	EQU	d'1666'	;0.299, -0.02%
+;Baud_1200	EQU	d'416'	;1.199, -0.08%
+;Baud_2400	EQU	d'207'	;2.404, +0.16%
+;Baud_9600	EQU	d'51'	;9.615, +0.16%
+; 32MHz clock low speed (BRGH=1,BRG16=1)
+Baud_300	EQU	.26666	;300, 0.00%
+Baud_1200	EQU	.6666	;1200, 0.00%
+Baud_2400	EQU	.3332	;2400, +0.01%
+Baud_9600	EQU	.832	;9604, +0.04%
+Baud_19200	EQU	.416	;19.18k, -0.08%
+Baud_38400	EQU	.207	;38.46k, +0.16%
+Baud_57600	EQU	.138	;57.55k, -0.08%
+BaudRate	EQU	Baud_38400
 ;
 ;
 ;
@@ -189,16 +212,13 @@ DebounceTime	EQU	d'10'
 ;
 	cblock	0x20 
 ;
-	LED_Time
-	LED_Count		;part of tickcount timmer
-	ISRScratch		;Timer tick count
-;
-	StatLED_Time
-	Stat_Count
+	SysLED_Time		;sys LED time
+	SysLED_Blinks		;0=1 flash,1,2,3
+	SysLED_BlinkCount
+	SysLED_Count		;sys LED Timer tick count
 ;
 	EEAddrTemp		;EEProm address to read or write
 	EEDataTemp		;Data to be writen to EEProm
-;
 ;
 	Timer1Lo		;1st 16 bit timer
 	Timer1Hi		; one second RX timeiout
@@ -208,6 +228,12 @@ DebounceTime	EQU	d'10'
 	Timer3Hi		;GP wait timer
 	Timer4Lo		;4th 16 bit timer
 	Timer4Hi		; debounce timer
+;
+	TXByte		;Next byte to send
+	RXByte		;Last byte received
+	SerFlags
+;
+	ssStatus:4		;Status and condition flags for the user.
 ;
 	Flags
 	SendingIdx
@@ -231,6 +257,27 @@ DebounceTime	EQU	d'10'
 #Define	FirstRAMParam	SysMode
 #Define	LastRAMParam	SysFlags
 ;
+#Define	DataReceivedFlag	SerFlags,1
+#Define	DataSentFlag	SerFlags,2
+;
+;----ssStatus bits
+#Define	ssRX_Timeout	ssStatus,3	;cleared by host read
+;
+; all bits of ssStatus+1 are cleared by a host kCmd_GetStatus command.
+;
+;================================================================================================
+;  Bank1 Ram 0A0h-0EFh 80 Bytes
+	cblock	0x0A0
+	RX_ParseFlags
+	RX_Flags
+	RX_DataCount
+	RX_CSUM
+	RX_SrcAdd:RP_AddressBytes
+	RX_DstAdd:RP_AddressBytes
+	RX_TempData:RP_DataBytes
+	RX_Data:RP_DataBytes
+	TX_Data:RP_DataBytes
+	endc
 ;
 ;================================================================================================
 ;  Bank2 Ram 120h-16Fh 80 Bytes
@@ -346,8 +393,9 @@ ProgStartVector	CLRF	PCLATH
 ;
 ; Timer 2
 	BTFSS	PIR1,TMR2IF
-	GOTO	TMR2_End
+	goto	SystemTick_end
 ;
+	BCF	PIR1,TMR2IF	; reset interupt flag bit
 ;------------------
 ; These routines run 100 times per second
 ;------------------
@@ -381,11 +429,11 @@ ProgStartVector	CLRF	PCLATH
 	BTFSS	SW3_In
 	BSF	SW3_Flag
 ; Dec LED time
-	DECFSZ	LED_Count,F	;Is it time?
+	DECFSZ	SysLED_Count,F	;Is it time?
 	bra	TMR2_Done	; No, not yet
 ;
-	MOVF	LED_Time,W
-	MOVWF	LED_Count
+	MOVF	SysLED_Time,W
+	MOVWF	SysLED_Count
 ; Flash LEDs
 	BCF	INDF0,LED1_Bit
 	BTFSC	LED2_Flag
@@ -394,8 +442,8 @@ ProgStartVector	CLRF	PCLATH
 	BCF	INDF0,LED3_Bit
 ;
 ;
-TMR2_Done	BCF	PIR1,TMR2IF
-TMR2_End:	
+TMR2_Done:
+SystemTick_end:	
 ;
 ;=========================================================================================
 	MOVLB	0	;Bank0
@@ -407,24 +455,6 @@ TMR2_End:
 ;
 ;=========================================================================================
 ;-----------------------------------------------------------------------------------------
-; I2C Com
-	MOVLB	0x00
-	btfsc	PIR1,SSP1IF 	;Is this a SSP interrupt?
-	call	I2C_ISR	; Yes
-	movlb	0
-;-----------------------------------------------------------------------------------------
-; I2C Bus Collision
-IRQ_5	MOVLB	0x00
-	btfss	PIR2,BCL1IF
-	goto	IRQ_5_End
-
-	banksel	SSP1BUF						
-	movf	SSP1BUF,w	; clear the SSP buffer
-	bsf	SSP1CON1,CKP	; release clock stretch
-	movlb	0x00
-	bcf	PIR2,BCL1IF	; clear the SSP interrupt flag
-IRQ_5_End:
-;
 ;--------------------------------------------------------------------
 ;
 	retfie		; return from interrupt
@@ -439,72 +469,7 @@ IRQ_5_End:
 ;
 ;==============================================================================================
 ;
-start	MOVLB	0x01	; select bank 1
-	bsf	OPTION_REG,NOT_WPUEN	; disable pullups on port B
-	bcf	OPTION_REG,TMR0CS	; TMR0 clock Fosc/4
-	bcf	OPTION_REG,PSA	; prescaler assigned to TMR0
-	bsf	OPTION_REG,PS0	;111 8mhz/4/256=7812.5hz=128uS/Ct=0.032768S/ISR
-	bsf	OPTION_REG,PS1	;101 8mhz/4/64=31250hz=32uS/Ct=0.008192S/ISR
-	bsf	OPTION_REG,PS2
-;
-	MOVLB	0x01	; bank 1
-	MOVLW	OSCCON_Value
-	MOVWF	OSCCON
-	movlw	b'00010111'	; WDT prescaler 1:65536 period is 2 sec (RESET value)
-	movwf	WDTCON 	
-;	
-	MOVLB	0x03	; bank 3
-	CLRF	ANSELA
-	CLRF	ANSELB	;Digital I/O
-;
-; setup timer 1 for 0.5uS/count
-;
-	MOVLB	0x00	; bank 0
-	MOVLW	T1CON_Val
-	MOVWF	T1CON
-	bcf	T1GCON,TMR1GE	;always count
-;
-	BANKSEL	T2CON	;Setup T2 for 100/s
-	MOVLW	T2CON_Value
-	MOVWF	T2CON
-	BANKSEL	PR2
-	MOVLW	PR2_Value
-	MOVWF	PR2
-	BANKSEL	PIE1	;Enable Interupts
-	BSF	PIE1,TMR2IE
-;
-	MOVLB	0x00	;Bank 0
-; setup data ports
-	movlw	PortBValue
-	movwf	PORTB	;init port B
-	movlw	PortAValue
-	movwf	PORTA
-	MOVLB	0x01	; bank 1
-	movlw	PortADDRBits
-	movwf	TRISA
-	movlw	PortBDDRBits	;setup for programer
-	movwf	TRISB
-;
-	CLRWDT
-; clear memory to zero
-	CALL	ClearRam
-;-----------------------
-; Setup CCP1 & CCP2
-	MOVLB	0x02	; bank 2
-	BSF	APFCON0,CCP2SEL
-;
-	MOVLB	0x00
-	MOVLW	LEDTIME
-	MOVWF	LED_Time
-;
-	CLRWDT
-	call	CopyToRam
-;
-	CLRWDT
-	call	Init_I2C	;setup I2C
-;
-	bsf	INTCON,PEIE	; enable periferal interupts
-	bsf	INTCON,GIE	; enable interupts
+start	mLongCall	InitializeIO
 ;
 ;=========================================================================================
 ; Setup default servo data
@@ -514,238 +479,57 @@ start	MOVLB	0x01	; select bank 1
 ;
 ;
 ;=========================================================================================
-;=========================================================================================
-;  Main Loop
-;
+;*****************************************************************************************
 ;=========================================================================================
 MainLoop	CLRWDT
 ;
-	CALL	I2C_Idle
-	CALL	I2C_DataInturp
+	call	GetSerInBytes
+	SKPZ		;Any data?
+	CALL	RS232_Parse	; yes
 ;
-	CALL	I2C_DataSender
+	movlb	1
+	btfss	RXDataIsNew
+	bra	ML_1
+	mLongCall	HandleRXData
+ML_1:
+;
 ;
 	CALL	IdleServos
 ;	CALL	TestServoLib	;tc
 ;
 	MOVLB	0x00
-	BTFSC	SW2_Flag
+	BTFSC	SW1_Flag	;manual reset
 	GOTO	start
 ;
+;---------------------
+; Handle Serial Communications
+	BTFSC	PIR1,TXIF	;TX done?
+	CALL	TX_TheByte	; Yes
+;
+; move any serial data received into the 32 byte input buffer
+	BTFSS	DataReceivedFlag
+	BRA	ML_Ser_Out
+	MOVF	RXByte,W
+	BCF	DataReceivedFlag
+	CALL	StoreSerIn
+;
+; If the serial data has been sent and there are bytes in the buffer, send the next byte
+;
+ML_Ser_Out	BTFSS	DataSentFlag
+	BRA	ML_Ser_End
+	CALL	GetSerOut
+	BTFSS	Param78,0
+	BRA	ML_Ser_End
+	MOVWF	TXByte
+	BCF	DataSentFlag
+ML_Ser_End:
+;----------------------
 	goto	MainLoop
+;=========================================================================================
+;*****************************************************************************************
+;=========================================================================================
 ;
 	include <ServoLib.inc>
-;
-	if oldCode
-;=========================================================================================
-;=========================================================================================
-; Parse the incoming data and put it where it belongs
-; Cmd Byte, Servo#, Data (1 or 2 bytes)
-; 
-kServoPosCmd	EQU	0x80	;Position Command CMDSigTime
-kServoMaxSpd	EQU	0x90	;LSB is ServoMaxSpeed
-kServoAccel	EQU	0xA0	;LSB is ServoAccelValue
-kServoON	EQU	0xB0	;Set ServoActive
-kServoOFF	EQU	0xC0	;Clr ServoActive
-kServoMinTime	EQU	0xD0	;Minimum pulse time (900uS=1800)
-kServoMaxTime	EQU	0xE0	;Maximum pulse time (2100uS=4200)
-;
-;
-I2C_DataInturp	BTFSC	I2C_RXLocked	;Data is locked?
-	RETURN		; Yes
-	BTFSS	I2C_NewRXData	;Data is new?
-	RETURN		; No
-	BCF	I2C_NewRXData
-;
-	CLRF	Param79	;offset
-I2C_DataInturp_L1	LOADFSR0	I2C_ARRAY_RX,Param79
-	MOVIW	FSR0++
-	SKPNZ		;Cmd==0?
-	GOTO	I2C_DataInturp_End	; Yes, we're done
-	MOVWF	Param7A	;Store Cmd in Param7A
-	MOVIW	FSR0++
-	ANDLW	0x0F
-	MOVWF	Param79	;Store Servo# in Param79
-; *** kServoPosCmd ***
-	MOVF	Param7A,W
-	SUBLW	kServoPosCmd
-	SKPZ
-	GOTO	I2C_DataInturp_1
-;
-	LOADFSR1	CMDSigTime0_7,Param79
-	GOTO	I2C_DI_Mov2
-; *** kServoMaxSpd ***
-I2C_DataInturp_1	MOVF	Param7A,W
-	SUBLW	kServoMaxSpd
-	SKPZ
-	GOTO	I2C_DataInturp_2
-;
-	LOADFSR1	ServoMaxSpeed0_7,Param79
-I2C_DI_Mov1	MOVIW	FSR0++
-	MOVWI	FSR1++
-	GOTO	I2C_DataInturp_Next
-; *** kServoAccel ***
-I2C_DataInturp_2	MOVF	Param7A,W
-	SUBLW	kServoAccel
-	SKPZ
-	GOTO	I2C_DataInturp_3
-;
-	LOADFSR1	ServoAccelValue0_7,Param79
-	GOTO	I2C_DI_Mov1
-; *** kServoON ***
-I2C_DataInturp_3	MOVF	Param7A,W
-	SUBLW	kServoON
-	SKPZ
-	GOTO	I2C_DataInturp_4
-;
-	MOVF	Param79,W
-	ANDLW	0x07
-	LOADFSR1W	ServoFlags
-	BTFSS	Param79,3
-	BSF	INDF1,ServoOnBit0_7
-	BTFSC	Param79,3
-	BSF	INDF1,ServoOnBit8_15
-	GOTO	I2C_DataInturp_Next
-; *** kServoOFF ***
-I2C_DataInturp_4	MOVF	Param7A,W
-	SUBLW	kServoOFF
-	SKPZ
-	GOTO	I2C_DataInturp_5
-;
-	MOVF	Param79,W
-	ANDLW	0x07
-	LOADFSR1W	ServoFlags
-	BTFSS	Param79,3
-	BCF	INDF1,ServoOnBit0_7
-	BTFSC	Param79,3
-	BCF	INDF1,ServoOnBit8_15	
-	GOTO	I2C_DataInturp_Next
-; *** kServoMinTime ***
-I2C_DataInturp_5	MOVF	Param7A,W
-	SUBLW	kServoMinTime
-	SKPZ
-	GOTO	I2C_DataInturp_6
-;
-	LOADFSR1	MinTime0_7,Param79
-	GOTO	I2C_DI_Mov2
-; *** kServoMaxTime ***
-I2C_DataInturp_6	MOVF	Param7A,W
-	SUBLW	kServoMaxTime
-	SKPZ
-	GOTO	I2C_DataInturp_7
-;
-	LOADFSR1	MaxTime0_7,Param79
-	GOTO	I2C_DI_Mov2
-;	
-I2C_DataInturp_7:
-;
-; Cmd was not valid
-	GOTO	I2C_DataInturp_End
-;-----------------
-;Entry: FSR0 >> I2C_ARRAY_RX, FSR1 >> data dest
-;Exit: 
-;
-I2C_DI_Mov2	MOVIW	FSR0++
-	MOVWI	FSR1++
-	MOVIW	FSR0++
-	MOVWI	FSR1++
-	INCF	Param79,F	;4 byte Cmd, most are 3
-;
-I2C_DataInturp_Next	INCF	Param79,F
-	INCF	Param79,F
-	INCF	Param79,F
-	MOVLW	.32
-	SUBWF	Param79,W
-	SKPNB
-	GOTO	I2C_DataInturp_L1
-	MOVLB	0x00
-; clear old data
-I2C_DataInturp_End	CLRF	Param79
-	LOADFSR0	I2C_ARRAY_RX,Param79
-I2C_DataInturp_L2	MOVLW	0x00
-	MOVWI	FSR0++
-	INCF	Param79,F
-	MOVLW	RX_ELEMENTS
-	SUBWF	Param79,W
-	SKPZ
-	GOTO	I2C_DataInturp_L2
-	RETURN
-;
-;==============================================================
-;Send 14 bytes
-; ServoFlags, Servo#, SigOutTime, Servo#, SigOutTime
-;
-I2C_DataSender	BTFSC	I2C_TXLocked	;Locked?
-	RETURN		; Yes
-;
-	CLRW
-	LOADFSR1W	ServoFlags
-;
-; Send all 8 servo flag bytes every time
-;
-	MOVLW	0x08
-	MOVWF	Param79
-	CLRW
-	LOADFSR0W	I2C_ARRAY_TX
-I2C_DataSender_L1	MOVIW	FSR1++	
-	MOVWI	FSR0++
-	DECFSZ	Param79,F
-	GOTO	I2C_DataSender_L1
-;
-; Clear old data
-	MOVLW	0x06
-	MOVWF	Param79
-	MOVLW	I2C_TX_Init_Val
-I2C_DataSender_L4	MOVWI	FSR0++
-	DECFSZ	Param79,F
-	GOTO	I2C_DataSender_L4
-;
-; Send the next 2 active servos # and SigOutTime0_7 (3 bytes each)
-;
-	MOVLW	0x02
-	MOVWF	Param7A
-	BANKSEL	SendingIdx
-I2C_DataSender_L3	MOVF	SendingIdx,W
-	ANDLW	0x07
-	LOADFSR1W	ServoFlags
-	BTFSC	SendingIdx,3	;0..7?
-	GOTO	I2C_DataSender_1	; No
-	BTFSS	INDF1,ServoOnBit0_7	;Active?
-	GOTO	I2C_DataSender_3	; No
-	GOTO	I2C_DataSender_2
-;
-I2C_DataSender_1	BTFSC	INDF1,ServoOnBit8_15	;Active?
-	GOTO	I2C_DataSender_2	; Yes
-;
-I2C_DataSender_3	INCF	SendingIdx,W
-	ANDLW	0x0F
-	MOVWF	SendingIdx
-	SKPNZ		;looped around
-	RETURN
-;
-I2C_DataSender_2	MOVLW	0x02
-	MOVWF	Param79
-	MOVF	SendingIdx,W
-	MOVWI	FSR0++	;Send servo #
-;
-; Send 2 byte value SigOutTime0_7
-;
-	LOADFSR1W	SigOutTime0_7
-I2C_DataSender_L2	MOVIW	FSR1++	
-	MOVWI	FSR0++
-	DECFSZ	Param79,F
-	GOTO	I2C_DataSender_L2
-;
-	INCF	SendingIdx,W
-	ANDLW	0x0F
-	MOVWF	SendingIdx
-	DECFSZ	Param7A
-	GOTO	I2C_DataSender_L3
-	RETURN
-;
-	endif
-;=========================================================================================
-;=========================================================================================
 ;
 ;
 	org 0x800

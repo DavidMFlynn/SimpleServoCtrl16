@@ -206,607 +206,168 @@ Cmd_GetMode	movf	SysMode,W
 ;---kCmd_SetCmdPos-------------------
 ; Set Command Position
 Cmd_SetCmdPos	moviw	FSR1++
-	movwf	ssCmdPos
+	andlw	0x0F	;0 .. 15 only
+	movwf	Param78	;Servo Number
+	lslf	Param78,F	;x2
 	moviw	FSR1++
-	movwf	ssCmdPos+1
+	movwf	Param79
+	moviw	FSR1++
+	movwf	Param7A
+	LOADFSR1	CMDSigTime,Param78
+Cmd_SetWord7879	movf	Param79,W
+	movwi	FSR1++
+	movf	Param7A,W
+	movwi	FSR1++
 	goto	TX_ACK
 ;
 ;---kCmd_GetCmdPos------------------
 ; Get Command Position
-Cmd_GetCmdPos	movf	ssCmdPos,W
+Cmd_GetCmdPos	moviw	FSR1++
+	andlw	0x0F	;0 .. 15 only
+	movwf	Param78	;Servo Number
+	lslf	Param78,F	;x2
+	LOADFSR1	CMDSigTime,Param78
+Cmd_GetWord	moviw	FSR1++
 	movwi	FSR0++
-	movf	ssCmdPos+1,W
-	movwi	FSR0++
-	bcf                    ssCmdPosVerified
-	goto	RS232_Send_S0
-;
-Cmd_GetCmdPos_end:
-;---kCmd_SetMaxI-------------------
-; Set Max Current
-Cmd_SetMaxI	moviw	FSR1++
-	movwf	ssMaxI
-	goto	TX_ACK
-;
-;---kCmd_GetMaxI-------------------
-; Get Max Current
-Cmd_GetMaxI	movf	ssMaxI,W
-	movwi	FSR0++
-	goto	RS232_Send_S0
-;
-;---kCmd_SetFFwd-------------------
-; Set ServoFastForward
-Cmd_SetFFwd	moviw	FSR1++
-	movwf	ServoFastForward
 	moviw	FSR1++
-	movwf	ServoFastForward+1
-	goto	TX_ACK
-;
-;---kCmd_GetFFwd-------------------
-; Get ServoFastForward
-Cmd_GetFFwd	movf	ServoFastForward,W
-	movwi	FSR0++
-	movf	ServoFastForward+1,W
 	movwi	FSR0++
 	goto	RS232_Send_S0
 ;
-;---kCmd_SetFRev-------------------
-; Set ServoFastReverse
-Cmd_SetFRev	moviw	FSR1++
-	movwf	ServoFastReverse
+;---kCmd_SetAccel-------------------
+; Set Acceleration
+Cmd_SetAccel	moviw	FSR1++
+	andlw	0x0F	;0 .. 15 only
+	movwf	Param78	;Servo Number
 	moviw	FSR1++
-	movwf	ServoFastReverse+1
+	movwf	Param79
+	LOADFSR1	ServoAccelValue,Param78
+Cmd_SetByte79	movf	Param79,W
+	movwi	FSR1++
 	goto	TX_ACK
 ;
-;---kCmd_GetFRev------------------
-; Get ServoFastReverse
-Cmd_GetFRev	movf	ServoFastReverse,W
-	movwi	FSR0++
-	movf	ServoFastReverse+1,W
+;---kCmd_GetAccel------------------
+; Get Command Position
+Cmd_GetAccel	moviw	FSR1++
+	andlw	0x0F	;0 .. 15 only
+	movwf	Param78	;Servo Number
+	LOADFSR1	ServoAccelValue,Param78
+Cmd_GetByte	moviw	FSR1++
 	movwi	FSR0++
 	goto	RS232_Send_S0
+;
+;---kCmd_SetServoEnable--------------
+Cmd_SetServoEnable	moviw	FSR1++
+	andlw	0x0F	;0 .. 15 only
+	movwf	Param78	;Servo Number
+	moviw	FSR1++
+	movwf	Param79
+	movf	Param78,W
+	andlw	0x07	;2 servos per ServoFlags byte
+	LOADFSR1W	ServoFlags
+	btfss	Param79,0	;boolean value, Enable?
+	bra	Cmd_SetServoEnable_1	; No, disable
+	BTFSS	Param78,3
+	BSF	INDF1,ServoOnBit0_7	;enable servo
+	BTFSC	Param78,3
+	BSF	INDF1,ServoOnBit8_15	;enable servo
+	goto	TX_ACK
+;
+Cmd_SetServoEnable_1	BTFSS	Param78,3
+	BCF	INDF1,ServoOnBit0_7	;disable servo
+	BTFSC	Param78,3
+	BCF	INDF1,ServoOnBit8_15	;disable servo
+	goto	TX_ACK
+;
+;---kCmd_GetServoEnable--------------
+Cmd_GetServoEnable	moviw	FSR1++
+	andlw	0x0F	;0 .. 15 only
+	movwf	Param78	;Servo Number
+	andlw	0x07	;2 servos per ServoFlags byte
+	LOADFSR1W	ServoFlags
+	BTFSC	Param78,3
+	bra	Cmd_GetServoEnable_1
+	btfsc	INDF1,ServoOnBit0_7	;Is enabled?
+	bsf	INDF0,0	; Yes
+	goto	RS232_Send_S0
+;
+Cmd_GetServoEnable_1	btfsc	INDF1,ServoOnBit8_15	;Is enabled?
+	bsf	INDF0,0	; Yes
+	goto	RS232_Send_S0
+;
+;---kCmd_SetMaxSpeed-----------------
+Cmd_SetMaxSpeed	moviw	FSR1++
+	andlw	0x0F	;0 .. 15 only
+	movwf	Param78	;Servo Number
+	moviw	FSR1++
+	movwf	Param79
+	LOADFSR1	ServoMaxSpeed,Param78
+	goto	Cmd_SetByte79
+;
+;---kCmd_GetMaxSpeed-----------------
+Cmd_GetMaxSpeed	moviw	FSR1++
+	andlw	0x0F	;0 .. 15 only
+	movwf	Param78	;Servo Number
+	LOADFSR1	ServoMaxSpeed,Param78
+	goto	Cmd_GetByte
 ;
 ;---kCmd_SetMin_uS-------------------
 ; Set ServoMin_uS
 Cmd_SetMin_uS	moviw	FSR1++
-	movwf	ServoMin_uS
+	andlw	0x0F	;0 .. 15 only
+	movwf	Param78	;Servo Number
+	lslf	Param78,F	;x2
 	moviw	FSR1++
-	movwf	ServoMin_uS+1
-	goto	TX_ACK
+	movwf	Param79
+	moviw	FSR1++
+	movwf	Param7A
+	LOADFSR1	MinTime,Param78
+	goto	Cmd_SetWord7879
 ;
 ;---kCmd_GetMin_uS----------------
 ; Get ServoMin_uS
-Cmd_GetMin_uS	movf	ServoMin_uS,W
-	movwi	FSR0++
-	movf	ServoMin_uS+1,W
-	movwi	FSR0++
-	goto	RS232_Send_S0
+Cmd_GetMin_uS	moviw	FSR1++
+	andlw	0x0F	;0 .. 15 only
+	movwf	Param78	;Servo Number
+	lslf	Param78,F	;x2
+	LOADFSR1	MinTime,Param78
+	goto	Cmd_GetWord
 ;
 ;---kCmd_SetMax_uS-------------------
 ; Set ServoMax_uS
 Cmd_SetMax_uS	moviw	FSR1++
-	movwf	ServoMax_uS
+	andlw	0x0F	;0 .. 15 only
+	movwf	Param78	;Servo Number
+	lslf	Param78,F	;x2
 	moviw	FSR1++
-	movwf	ServoMax_uS+1
-	goto	TX_ACK
+	movwf	Param79
+	moviw	FSR1++
+	movwf	Param7A
+	LOADFSR1	MaxTime,Param78
+	goto	Cmd_SetWord7879
 ;
 ;---kCmd_GetMax_uS-----------------
 ; Get ServoMax_uS
-Cmd_GetMax_uS	movf	ServoMax_uS,W
-	movwi	FSR0++
-	movf	ServoMax_uS+1,W
-	movwi	FSR0++
-	goto	RS232_Send_S0
-;
-;---kCmd_SetRevDir---------------
-Cmd_SetRevDir	bcf	ssReverseDir
-	movlw	0x01
-	xorwf	INDF1,W
-	SKPNZ		;01h?
-	bsf	ssReverseDir	; Yes
-	goto	TX_ACK
-;
-;---kCmd_GetRevDir---------------
-Cmd_GetRevDir	btfsc	ssReverseDir
-	bsf	INDF0,0
-	goto	RS232_Send_S0
-;
-;---kCmd_SetEnaOvrCur------------
-Cmd_SetEnaOvrCur	bcf	ssEnableOverCur
-	movlw	0x01
-	xorwf	INDF1,W
-	SKPNZ
-	bsf	ssEnableOverCur
-	goto	TX_ACK
-;
-;---kCmd_GetEnaOvrCur------------
-Cmd_GetEnaOvrCur	btfsc	ssEnableOverCur
-	bsf	INDF0,0
-	goto	RS232_Send_S0
-;
-;---kCmd_SetStopCenter---------
-Cmd_SetStopCenter	moviw	FSR1++
-	movwf	ServoStopCenter
-	moviw	FSR1++
-	movwf	ServoStopCenter+1
-	goto	TX_ACK
-;
-;---kCmd_GetStopCenter---------
-Cmd_GetStopCenter	movf	ServoStopCenter,W
-	movwi	FSR0++
-	movf	ServoStopCenter+1,W
-	movwi	FSR0++
-	goto	RS232_Send_S0
-;
-;---kCmd_SetSpeed--------------
-Cmd_SetSpeed	moviw	FSR1++
-	andlw	0x3F	;0..63
-	movwf	ServoSpeed
-	goto	TX_ACK
-;
-;---kCmd_GetSpeed--------------
-Cmd_GetSpeed	movf	ServoSpeed,W
-	movwi	FSR0++
-	goto	RS232_Send_S0
-;
-;---kCmd_SetUseIdleCenter------
-Cmd_SetUseIdleCenter	bcf	ssMode3IdleCenter
-	movlw	0x01
-	xorwf	INDF1,W
-	SKPNZ
-	bsf	ssMode3IdleCenter
-	goto	TX_ACK
-;
-;---kCmd_GetUseIdleCenter------
-Cmd_GetUseIdleCenter	btfsc	ssMode3IdleCenter
-	bsf	INDF0,0
-	goto	RS232_Send_S0
-;
-;---kCmd_SetDeadBand------------
-Cmd_SetDeadBand	moviw	FSR1++
-	movwf	DeadBand
-	goto	TX_ACK	
-;
-;---kCmd_GetDeadBand------------
-Cmd_GetDeadBand	movf	DeadBand,W
-	movwi	FSR0++
-	goto	RS232_Send_S0
-;
-;---kCmd_SetUseFastPWM----------	;+1 data (ssEnableFastPWM), return ACK
-Cmd_SetUseFastPWM	bcf	ssEnableFastPWM
-	movlw	0x01
-	xorwf	INDF1,W
-	SKPNZ
-	bsf	ssEnableFastPWM
-	goto	TX_ACK
-;
-;---kCmd_GetUseFastPWM----------
-Cmd_GetUseFastPWM	btfsc	ssEnableFastPWM
-	bsf	INDF0,0
-	goto	RS232_Send_S0
-;
-;---kCmd_SetGripI-------------------
-; Set Grip Current
-Cmd_SetGripI	moviw	FSR1++
-	movwf	ssGripI
-	goto	TX_ACK
-;
-;---kCmd_GetGripI-------------------
-; Get Grip Current
-Cmd_GetGripI	movf	ssGripI,W
-	movwi	FSR0++
-	goto	RS232_Send_S0
-;
-;---kCmd_SetAuxConfig-----------	;+3 data (Aux0Config,Aux1Config,Aux2Config), return ACK
-; Set Aux N Config
-Cmd_SetAuxConfig	movf	INDF1,W
-	sublw	0x02	;2-AuxNum
-	SKPNB		;<=2?
-	goto	HandleRXData_Rtn	; no
-;
-	moviw	FSR1++
-	movwf	Param78	;AuxNum
-	sublw	0x02	;2-AuxNum
-	SKPNB		;<=2?
-	goto	HandleRXData_Rtn	; no
-;
-                       movf                   Param78,W              ;AuxNum
-	addlw	low ssAux0Config
-	movwf	FSR0L
-	movlw	high ssAux0Config
-	movwf	FSR0H
-	moviw	FSR1++	;New Config Value
-	andlw                  0x07
-	movwi	FSR0++
-;
-; Configure I/O Port
-                       brw
-                       bra                    Cmd_SetAuxNConfigNone
-                       bra                    Cmd_SetAuxNConfigLEDBtn
-                       bra                    Cmd_SetAuxNConfigDigIn
-                       bra                    Cmd_SetAuxNConfigDigOut
-                       bra                    Cmd_SetAuxNConfigAnalogIn
-                       bra                    Cmd_SetAuxNConfigHomeSw
-                       bra                    Cmd_SetAuxNConfigFwdLimit
-                       bra                    Cmd_SetAuxNConfigRevLimit
-;
-Cmd_SetAuxNConfigNone:
-Cmd_SetAuxNConfigLEDBtn:
-Cmd_SetAuxNConfigDigIn:
-Cmd_SetAuxNConfigHomeSw:
-Cmd_SetAuxNConfigFwdLimit:
-Cmd_SetAuxNConfigRevLimit:
-                       movf                   Param78,W              ;AuxNum
-                       SKPZ
-                       bra                    Cmd_SetAux1ConfigDigIn
-;
-Cmd_SetAux0ConfigDigIn:
-                       movlb                  ANSELA                 ;bank 3
-                       bcf                    Aux0_ANSEL_Bit         ;Digital
-                       movlb                  1                      ;bank 1
-                       bcf                    AN_Aux0_ActiveBit      ;Don't Read AN
-                       bsf                    Aux0_LED1_TRIS         ;Input
-                       movlb                  2                      ;bank 2
-                       bcf                    Aux0_LED1_Lat          ;0
-                       movlb                  0                      ;bank 0
-                       goto	TX_ACK
-;
-Cmd_SetAux1ConfigDigIn:
-                       sublw                  0x01
-                       SKPZ
-                       bra                    Cmd_SetAux2ConfigDigIn
-                       movlb                  ANSELA                 ;bank 3
-                       bcf                    Aux1_ANSEL_Bit         ;Digital
-                       movlb                  1                      ;bank 1
-                       bcf                    AN_Aux1_ActiveBit      ;Don't Read AN
-                       bsf                    Aux1_LED2_TRIS         ;Input
-                       movlb                  2                      ;bank 2
-                       bcf                    Aux1_LED2_Lat          ;0
-                       movlb                  0                      ;bank 0
-                       goto	TX_ACK
-;
-Cmd_SetAux2ConfigDigIn:
-                       movlb                  ANSELA                 ;bank 3
-                       bcf                    Aux2_ANSEL_Bit         ;Digital
-                       movlb                  1                      ;bank 1
-                       bcf                    AN_Aux2_ActiveBit      ;Don't Read AN
-                       bsf                    Aux2_LED3_TRIS         ;Input
-                       movlb                  2                      ;bank 2
-                       bcf                    Aux2_LED3_Lat          ;0
-                       movlb                  0                      ;bank 0
-                       goto	TX_ACK
-;
-Cmd_SetAuxNConfigDigOut:
-                       movf                   Param78,W              ;AuxNum
-                       SKPZ
-                       bra                    Cmd_SetAux1ConfigDigOut
-;
-                       movlb                  ANSELA                 ;bank 3
-                       bcf                    Aux0_ANSEL_Bit         ;Digital
-                       movlb                  1                      ;bank 1
-                       bcf                    AN_Aux0_ActiveBit      ;Don't Read AN
-                       bcf                    Aux0_LED1_TRIS         ;Output
-                       movlb                  2                      ;bank 2
-                       bcf                    Aux0_LED1_Lat          ;0
-                       movlb                  0                      ;bank 0
-                       goto	TX_ACK
-;
-Cmd_SetAux1ConfigDigOut:
-                       sublw                  0x01
-                       SKPZ
-                       bra                    Cmd_SetAux2ConfigDigOut
-;
-                       movlb                  ANSELA                 ;bank 3
-                       bcf                    Aux1_ANSEL_Bit         ;Digital
-                       movlb                  1                      ;bank 1
-                       bcf                    AN_Aux1_ActiveBit      ;Don't Read AN
-                       bcf                    Aux1_LED2_TRIS         ;Output
-                       movlb                  2                      ;bank 2
-                       bcf                    Aux1_LED2_Lat          ;0
-                       movlb                  0                      ;bank 0
-                       goto	TX_ACK
-;        
-Cmd_SetAux2ConfigDigOut:
-                       movlb                  ANSELA                 ;bank 3
-                       bcf                    Aux2_ANSEL_Bit         ;Digital
-                       movlb                  1                      ;bank 1
-                       bcf                    AN_Aux2_ActiveBit      ;Don't Read AN
-                       bcf                    Aux2_LED3_TRIS         ;Output
-                       movlb                  2                      ;bank 2
-                       bcf                    Aux2_LED3_Lat          ;0
-                       movlb                  0                      ;bank 0
-                       goto	TX_ACK
-;
-Cmd_SetAuxNConfigAnalogIn:
-                       movf                   Param78,W              ;AuxNum
-                       SKPZ
-                       bra                    Cmd_SetAux1ConfigAnalogIn
-;
-                       movlb                  ANSELA                 ;bank 3
-                       bsf                    Aux0_ANSEL_Bit         ;Digital
-                       movlb                  1                      ;bank 1
-                       bsf                    AN_Aux0_ActiveBit      ;Don't Read AN
-                       bsf                    Aux0_LED1_TRIS         ;Input
-                       movlb                  2                      ;bank 2
-                       bcf                    Aux0_LED1_Lat          ;0
-                       movlb                  0                      ;bank 0
-                       goto	TX_ACK
-;
-Cmd_SetAux1ConfigAnalogIn:
-                       sublw                  0x01
-                       SKPZ
-                       bra                    Cmd_SetAux2ConfigAnalogIn
-;
-                       movlb                  ANSELA                 ;bank 3
-                       bsf                    Aux1_ANSEL_Bit         ;Digital
-                       movlb                  1                      ;bank 1
-                       bsf                    AN_Aux1_ActiveBit      ;Don't Read AN
-                       bsf                    Aux1_LED2_TRIS         ;Input
-                       movlb                  2                      ;bank 2
-                       bcf                    Aux1_LED2_Lat          ;0
-                       movlb                  0                      ;bank 0
-                       goto	TX_ACK
-;
-Cmd_SetAux2ConfigAnalogIn:
-                       movlb                  ANSELA                 ;bank 3
-                       bsf                    Aux2_ANSEL_Bit         ;Digital
-                       movlb                  1                      ;bank 1
-                       bsf                    AN_Aux2_ActiveBit      ;Don't Read AN
-                       bsf                    Aux2_LED3_TRIS         ;Input
-                       movlb                  2                      ;bank 2
-                       bcf                    Aux2_LED3_Lat          ;0
-                       movlb                  0                      ;bank 0
-                       goto	TX_ACK
-;
-;
-;---kCmd_GetAuxConfig-----------
-; Get Aux N Config
-Cmd_GetAuxConfig	movf	INDF1,W
-	sublw	0x02	;2-AuxNum
-	SKPNB		;<=2?
-	goto	HandleRXData_Rtn	; no
-;
-	movf	INDF1,W
-	addlw	low ssAux0Config
-	movwf	FSR1L
-	movlw	high ssAux0Config
-	movwf	FSR1H
-;
-	movf	INDF1,W
-	movwi	FSR0++
-	goto	RS232_Send_S0
-;
-;---kCmd_SetAuxNValue-----------	;+2 data (AuxNum,Value), return ACK
-; Set Aux N Value
-Cmd_SetAuxNValue	moviw	FSR1++
-	movwf	Param78	;AuxNum
-	sublw	0x02	;2-AuxNum
-	SKPNB		;<=2?
-	goto	HandleRXData_Rtn	; no
-;
-	movf	Param78,W	;AuxNum
-	addlw	low ssAux0Config
-	movwf	FSR0L
-	movlw	high ssAux0Config
-	movwf	FSR0H
-;
-	movf	INDF0,W	;ssAuxXConfig
-	andlw	0x07
-	brw
-	goto	TX_ACK	;kAuxIOnone
-	bra	Cmd_SetAuxNLED	;kAuxIOLEDBtn
-	goto	TX_ACK	;kAuxIODigitalIn
-	bra	Cmd_SetAuxNDigOut	;kAuxIODigitalOut
-	goto	TX_ACK	;kAuxIOAnalogIn
-	goto	TX_ACK	;kAuxIOHomeSw
-	goto	TX_ACK	;kAuxIOFwdLimit
-	goto	TX_ACK	;kAuxIORevLimit
-;
-Cmd_SetAuxNDigOut:
-                       movf	Param78,W	;AuxNum
-                       SKPZ
-	bra	Cmd_SetAuxNValue_Dig1
-;
-	moviw	FSR1++	;AuxVal
-                       bcf                    Aux0_SW1_Active        ;default to 0
-	btfsc                  WREG,0
-	bsf	Aux0_SW1_Active
-	goto	TX_ACK
-;
-Cmd_SetAuxNValue_Dig1:
-                       sublw	0x01                   ;AuxNum=1?
-	SKPZ
-	bra	Cmd_SetAuxNValue_Dig2  ; No
-;
-	moviw	FSR1++	;AuxVal
-                       bcf                    Aux1_SW2_Active        ;default to 0
-	btfsc                  WREG,0
-	bsf	Aux1_SW2_Active
-	goto	TX_ACK
-;
-Cmd_SetAuxNValue_Dig2:
-                       movf	Param78,W	;AuxNum
-                       sublw	0x02                   ;AuxNum=2?
-	SKPZ
-	goto	TX_ACK                 ; No
-;                       
-	moviw	FSR1++	;AuxVal
-                       bcf                    Aux2_SW3_Active        ;default to 0
-	btfsc                  WREG,0
-	bsf	Aux2_SW3_Active
-	goto	TX_ACK
-;
-Cmd_SetAuxNLED:
-	if UseAuxLEDBlinking
-	movf	Param78,W	;AuxNum
-	addlw	low LED1_Blinks
-	movwf	FSR0L
-	movlw	high LED1_Blinks
-	movwf	FSR0H
-	moviw	FSR1++	;AuxVal
-	movwi	FSR0++
-	endif
-	goto	TX_ACK
-;
-;---kCmd_GetAuxNValue-----------	;(AuxN,ValueL,ValueH)
-; Get Aux N Value
-Cmd_GetAuxNValue	movf	INDF1,W
-	movwf	Param78	;AuxNum
-	sublw	0x02	;2-AuxNum
-	SKPNB		;<=2?
-	goto	HandleRXData_Rtn	; no
-;
-	movf	Param78,W	;AuxNum
-	addlw	low ssAux0Config
-	movwf	FSR1L
-	movlw	high ssAux0Config
-	movwf	FSR1H
-;
-	movf	INDF1,W	;ssAuxXConfig
-	andlw	0x07
-	brw
-	goto	HandleRXData_Rtn	;kAuxIOnone, not valid
-	bra	Cmd_GetAuxNValue_Btn	;kAuxIOLEDBtn
-	bra	Cmd_GetAuxNValue_Dig	;kAuxIODigitalIn
-	bra	Cmd_GetAuxNValue_Dig	;kAuxIODigitalOut
-	bra	Cmd_GetAuxNValue_Ana	;kAuxIOAnalogIn
-	bra	Cmd_GetAuxNValue_Dig	;kAuxIOHomeSw
-	bra	Cmd_GetAuxNValue_Dig	;kAuxIOFwdLimit
-	bra	Cmd_GetAuxNValue_Dig	;kAuxIORevLimit
-;
-Cmd_GetAuxNValue_Ana	lslf	Param78,W	;AuxNum X2
-	addlw	low Cur_AN2            ;Aux0 = AN2
-	movwf	FSR1L
-	movlw	high Cur_AN2
-	movwf	FSR1H
-	moviw	FSR1++
-	movwi	FSR0++
-	moviw	FSR1++
-	movwi	FSR0++
-	goto	RS232_Send_S0
-;
-; Send the value of the port bit 0x00 or 0x01
-Cmd_GetAuxNValue_Dig	movf	Param78,W	;AuxNum
-	SKPZ
-	bra	Cmd_GetAuxNValue_Dig1
-	btfsc	Aux0_SW1_Active
-	movlw	0x01
-	movwi	FSR0++
-	goto	RS232_Send_S0
-;
-Cmd_GetAuxNValue_Dig1	sublw	0x01
-	SKPZ
-	bra	Cmd_GetAuxNValue_Dig2
-	btfsc	Aux1_SW2_Active
-	movlw	0x01
-	movwi	FSR0++
-	goto	RS232_Send_S0
-;
-Cmd_GetAuxNValue_Dig2	clrw
-	btfsc	Aux2_SW3_Active
-	movlw	0x01
-	movwi	FSR0++
-	goto	RS232_Send_S0
-; Send the Button value
-Cmd_GetAuxNValue_Btn	movf	Param78,W	;AuxNum
-	SKPZ
-	bra	Cmd_GetAuxNValue_Btn1
-	btfsc	Aux0_SW1_Active
-	movlw	0x01
-	movwi	FSR0++
-	goto	RS232_Send_S0
-;
-Cmd_GetAuxNValue_Btn1	sublw	0x01
-	SKPZ
-	bra	Cmd_GetAuxNValue_Btn2
-	btfsc	Aux1_SW2_Active
-	movlw	0x01
-	movwi	FSR0++
-	goto	RS232_Send_S0
-;
-Cmd_GetAuxNValue_Btn2	clrw
-	btfsc	Aux2_SW3_Active
-	movlw	0x01
-	movwi	FSR0++
-	goto	RS232_Send_S0
-;
-;
-;---kCmd_SetEncoderOffset-------  +2 data (EncoderOffset), return ACK
-;
-Cmd_SetEncoderOffset	moviw	FSR1++
-	movwf	EncoderOffset
-	moviw	FSR1++
-	movwf	EncoderOffset+1
-	goto	TX_ACK
-;
-;---kCmd_GetEncoderOffset-------
-;
-Cmd_GetEncoderOffset	movf	EncoderOffset,W
-	movwi	FSR0++
-	movf	EncoderOffset+1,W
-	movwi	FSR0++
-	goto	RS232_Send_S0
-;
-                       if UsePID
-;---kCmd_SetKp-------------------	;+1 data (Kp), return ACK
-Cmd_SetKp	moviw	FSR1++
-	movwf	Kp
-	goto	TX_ACK
-;
-;---kCmd_GetKp-------------------
-Cmd_GetKp	movf	Kp,W
-	movwi	FSR0++
-	goto	RS232_Send_S0
-;
-;---kCmd_SetKi-------------------	;+1 data (Ki), return ACK
-Cmd_SetKi	moviw	FSR1++
-	movwf	Ki
-	goto	TX_ACK
-;
-;---kCmd_GetKi-------------------
-Cmd_GetKi	movf	Ki,W
-	movwi	FSR0++
-	goto	RS232_Send_S0
-;
-;---kCmd_SetKd-------------------	;+1 data (Kd), return ACK
-Cmd_SetKd	moviw	FSR1++
-	movwf	Kd
-	goto	TX_ACK
-;---kCmd_GetKd-------------------
-Cmd_GetKd	movf	Kd,W
-	movwi	FSR0++
-	goto	RS232_Send_S0
-;
-                       endif
-;---kCmd_GetI-------------------
-; Get servo current
-Cmd_GetI	BankSel	Cur_AN0
-	movf	Cur_AN0,W
-	movwi	FSR0++
-	movf	Cur_AN0+1,W
-	movwi	FSR0++
-	goto	RS232_Send_S0
-;
-;---kCmd_GetEnc-------------------
-; Get Encoder Raw Position
-Cmd_GetEnc	movf	EncoderVal,W
-	movwi	FSR0++
-	movf	EncoderVal+1,W
-	movwi	FSR0++
-	goto	RS232_Send_S0
-;
-;---kCmd_GetEncAbs-------------------
-; Get Encoder Accumulated Position
-Cmd_GetEncAbs	movf	EncoderAccum,W
-	movwi	FSR0++
-	movf	EncoderAccum+1,W
-	movwi	FSR0++
-	movf	EncoderAccum+2,W
-	movwi	FSR0++
-	movlw	0x00
-	btfsc	EncoderAccum+2,7
-	movlw	0xFF
-	movwi	FSR0++	;sign extrnded Int24
-	goto	RS232_Send_S0
+Cmd_GetMax_uS	moviw	FSR1++
+	andlw	0x0F	;0 .. 15 only
+	movwf	Param78	;Servo Number
+	lslf	Param78,F	;x2
+	LOADFSR1	MaxTime,Param78
+	goto	Cmd_GetWord
+;
+;---kCmd_GetCurSpeed----------------	+1 Data (ServoNum) return ServoCurSpeed
+Cmd_GetCurSpeed	moviw	FSR1++
+	andlw	0x0F	;0 .. 15 only
+	movwf	Param78	;Servo Number
+	LOADFSR1	ServoCurSpeed,Param78
+	goto	Cmd_GetByte
+;
+;---kCmd_GetCurPos------------------	+1 Data (ServoNum) Return SigOutTime
+Cmd_GetCurPos	moviw	FSR1++
+	andlw	0x0F	;0 .. 15 only
+	movwf	Param78	;Servo Number
+	lslf	Param78,F	;x2
+	LOADFSR1	SigOutTime,Param78
+	goto	Cmd_GetWord
 ;
 ;---kCmd_SaveParams-----------------
 Cmd_SaveParams	mLongCall	SaveParams
@@ -816,23 +377,6 @@ Cmd_SaveParams	mLongCall	SaveParams
 Cmd_RestoreParams	mLongCall	CopyToRam
 	goto	TX_ACK
 ;
-;---kCmd_GetBattVolts---------------
-; Get battery volts
-Cmd_GetBattVolts	BankSel	BattVolts
-	movf	BattVolts,W
-	movwi	FSR0++
-	movf	BattVolts+1,W
-	movwi	FSR0++
-	goto	RS232_Send_S0
-;
-;---kCmd_GetCalPot------------------
-; Get calibration pot
-Cmd_GetCalPot	movlb	ModeZeroPot
-	movf	ModeZeroPot,W
-	movwi	FSR0++
-	movf	ModeZeroPot+1,W
-	movwi	FSR0++
-	goto	RS232_Send_S0
 ;
 ;---kCmd_GetStatus----------------
 Cmd_GetStatus	movf	ssStatus,W
@@ -845,8 +389,6 @@ Cmd_GetStatus	movf	ssStatus,W
 	movwi	FSR0++
 ;reset flags
 	bcf	ssRX_Timeout
-	bcf	ssGripMCur
-	bcf	ssGripOCur
 ;
 	clrf	ssStatus+1
 ;	
