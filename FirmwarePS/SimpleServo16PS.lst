@@ -145,8 +145,8 @@ SimpleServo16PS.asm                                                   Page: 1
 00132 0000 	;
 00133 0000 	;
 00134 0000 	;    Port B bits
-00135 0000 00F3 	PortBDDRBits	EQU	b'11110011'	;LEDs Out Others In
-00136 0000 0000 	PortBValue	EQU	b'00000000'
+00135 0000 00F7 	PortBDDRBits	EQU	b'11110111'	;LEDs Out Others In
+00136 0000 0004 	PortBValue	EQU	b'00000100'
 00137 0000 0000 	ANSELB_Val	EQU	b'00000000'
 00138 0000 	;
 00139 0000 000D 	#Define	SW1_In	PORTB,0	;SW1/LED1
@@ -172,10 +172,10 @@ SimpleServo16PS.asm                                                   Page: 1
 00159 0000 00FF 	All_In	EQU	0xFF
 00160 0000 0000 	All_Out	EQU	0x00
 00161 0000 	;
-00162 0000 0072 	OSCCON_Value	EQU	b'01110010'	;8MHz
-00163 0000 	;OSCCON_Value	EQU	b'11110000'	;32MHz
-00164 0000 004E 	T2CON_Value	EQU	b'01001110'	;T2 On, /16 pre, /10 post
-00165 0000 	;T2CON_Value	EQU	b'01001111'	;T2 On, /64 pre, /10 post
+00162 0000 	;OSCCON_Value	EQU	b'01110010'	;8MHz
+00163 0000 00F0 	OSCCON_Value	EQU	b'11110000'	;32MHz
+00164 0000 	;T2CON_Value	EQU	b'01001110'	;T2 On, /16 pre, /10 post
+00165 0000 004F 	T2CON_Value	EQU	b'01001111'	;T2 On, /64 pre, /10 post
 00166 0000 007D 	PR2_Value	EQU	.125
 00167 0000 	;
 00168 0000 0064 	LEDTIME	EQU	d'100'	;1.00 seconds
@@ -192,134 +192,128 @@ SimpleServo16PS.asm                                                   Page: 1
 00179 0000 	;TMR1L_Val	EQU	0x8F	; -625 = 0.625 mS, 1600 steps/sec
 00180 0000 	;TMR1H_Val	EQU	0xFD
 00181 0000 	;
-00182 0000 	;TXSTA_Value	EQU	b'00100000'	;8 bit, TX enabled, Async, low speed
-00183 0000 0024 	TXSTA_Value	EQU	b'00100100'	;8 bit, TX enabled, Async, high speed
-00184 0000 0090 	RCSTA_Value	EQU	b'10010000'	;RX enabled, 8 bit, Continious receive
-00185 0000 0008 	BAUDCON_Value	EQU	b'00001000'	;BRG16=1
-00186 0000 	; 8MHz clock low speed (BRGH=0,BRG16=1)
-00187 0000 	;Baud_300	EQU	d'1666'	;0.299, -0.02%
-00188 0000 	;Baud_1200	EQU	d'416'	;1.199, -0.08%
-00189 0000 	;Baud_2400	EQU	d'207'	;2.404, +0.16%
-00190 0000 	;Baud_9600	EQU	d'51'	;9.615, +0.16%
-00191 0000 	; 32MHz clock low speed (BRGH=1,BRG16=1)
+00182 0000 0024 	TXSTA_Value	EQU	b'00100100'	;8 bit, TX enabled, Async, high speed
+00183 0000 0090 	RCSTA_Value	EQU	b'10010000'	;RX enabled, 8 bit, Continious receive
+00184 0000 0008 	BAUDCON_Value	EQU	b'00001000'	;BRG16=1
+00185 0000 	; 32MHz clock low speed (BRGH=1,BRG16=1)
+00186 0000 682A 	Baud_300	EQU	.26666	;300, 0.00%
+00187 0000 1A0A 	Baud_1200	EQU	.6666	;1200, 0.00%
+00188 0000 0D04 	Baud_2400	EQU	.3332	;2400, +0.01%
+00189 0000 0340 	Baud_9600	EQU	.832	;9604, +0.04%
+00190 0000 01A0 	Baud_19200	EQU	.416	;19.18k, -0.08%
+00191 0000 00CF 	Baud_38400	EQU	.207	;38.46k, +0.16%
 SimpleServo16PS.asm                                                   Page: 3
 /Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
 
-00192 0000 682A 	Baud_300	EQU	.26666	;300, 0.00%
-00193 0000 1A0A 	Baud_1200	EQU	.6666	;1200, 0.00%
-00194 0000 0D04 	Baud_2400	EQU	.3332	;2400, +0.01%
-00195 0000 0340 	Baud_9600	EQU	.832	;9604, +0.04%
-00196 0000 01A0 	Baud_19200	EQU	.416	;19.18k, -0.08%
-00197 0000 00CF 	Baud_38400	EQU	.207	;38.46k, +0.16%
-00198 0000 008A 	Baud_57600	EQU	.138	;57.55k, -0.08%
-00199 0000 00CF 	BaudRate	EQU	Baud_38400
-00200 0000 	;
-00201 0000 	;
-00202 0000 	;
-00203 0000 000A 	DebounceTime	EQU	d'10'
-00204 0000 	;
-00205 0000 	;================================================================================================
-00206 0000 	;***** VARIABLE DEFINITIONS
-00207 0000 	; there are 256 bytes of ram, Bank0 0x20..0x7F, Bank1 0xA0..0xEF, Bank2 0x120..0x16F
-00208 0000 	; there are 256 bytes of EEPROM starting at 0x00 the EEPROM is not mapped into memory but
-00209 0000 	;  accessed through the EEADR and EEDATA registers
-00210 0000 	;================================================================================================
-00211 0000 	;  Bank0 Ram 020h-06Fh 80 Bytes
-00212 0000 	;
-00213 0000 		cblock	0x20 
-00214 0000 	;
-00215 0000 0020 		SysLED_Time		;sys LED time
-00216 0000 0021 		SysLED_Blinks		;0=1 flash,1,2,3
-00217 0000 0022 		SysLED_BlinkCount
-00218 0000 0023 		SysLED_Count		;sys LED Timer tick count
-00219 0000 	;
-00220 0000 0024 		EEAddrTemp		;EEProm address to read or write
-00221 0000 0025 		EEDataTemp		;Data to be writen to EEProm
-00222 0000 	;
-00223 0000 0026 		Timer1Lo		;1st 16 bit timer
-00224 0000 0027 		Timer1Hi		; one second RX timeiout
-00225 0000 0028 		Timer2Lo		;2nd 16 bit timer
-00226 0000 0029 		Timer2Hi		;
-00227 0000 002A 		Timer3Lo		;3rd 16 bit timer
-00228 0000 002B 		Timer3Hi		;GP wait timer
-00229 0000 002C 		Timer4Lo		;4th 16 bit timer
-00230 0000 002D 		Timer4Hi		; debounce timer
+00192 0000 008A 	Baud_57600	EQU	.138	;57.55k, -0.08%
+00193 0000 00CF 	BaudRate	EQU	Baud_38400
+00194 0000 	;
+00195 0000 	;
+00196 0000 	;
+00197 0000 000A 	DebounceTime	EQU	d'10'
+00198 0000 	;
+00199 0000 	;================================================================================================
+00200 0000 	;***** VARIABLE DEFINITIONS
+00201 0000 	; there are 256 bytes of ram, Bank0 0x20..0x7F, Bank1 0xA0..0xEF, Bank2 0x120..0x16F
+00202 0000 	; there are 256 bytes of EEPROM starting at 0x00 the EEPROM is not mapped into memory but
+00203 0000 	;  accessed through the EEADR and EEDATA registers
+00204 0000 	;================================================================================================
+00205 0000 	;  Bank0 Ram 020h-06Fh 80 Bytes
+00206 0000 	;
+00207 0000 		cblock	0x20 
+00208 0000 	;
+00209 0000 0020 		SysLED_Time		;sys LED time
+00210 0000 0021 		SysLED_Blinks		;0=1 flash,1,2,3
+00211 0000 0022 		SysLED_BlinkCount
+00212 0000 0023 		SysLED_Count		;sys LED Timer tick count
+00213 0000 	;
+00214 0000 0024 		EEAddrTemp		;EEProm address to read or write
+00215 0000 0025 		EEDataTemp		;Data to be writen to EEProm
+00216 0000 	;
+00217 0000 0026 		Timer1Lo		;1st 16 bit timer
+00218 0000 0027 		Timer1Hi		; one second RX timeiout
+00219 0000 0028 		Timer2Lo		;2nd 16 bit timer
+00220 0000 0029 		Timer2Hi		;
+00221 0000 002A 		Timer3Lo		;3rd 16 bit timer
+00222 0000 002B 		Timer3Hi		;GP wait timer
+00223 0000 002C 		Timer4Lo		;4th 16 bit timer
+00224 0000 002D 		Timer4Hi		; debounce timer
+00225 0000 	;
+00226 0000 002E 		TXByte		;Next byte to send
+00227 0000 002F 		RXByte		;Last byte received
+00228 0000 0030 		SerFlags
+00229 0000 	;
+00230 0000 0031 		ssStatus:4		;Status and condition flags for the user.
 00231 0000 	;
-00232 0000 002E 		TXByte		;Next byte to send
-00233 0000 002F 		RXByte		;Last byte received
-00234 0000 0030 		SerFlags
-00235 0000 	;
-00236 0000 0031 		ssStatus:4		;Status and condition flags for the user.
-00237 0000 	;
-00238 0000 0035 		Flags
-00239 0000 0036 		SendingIdx
-00240 0000 	;---------------------
-00241 0000 	;Below here are saved in eeprom
+00232 0000 0035 		Flags
+00233 0000 0036 		SendingIdx
+00234 0000 	;---------------------
+00235 0000 	;Below here are saved in eeprom
+00236 0000 	;
+00237 0000 0037 		SysMode
+00238 0000 0038 		RS232_MasterAddr
+00239 0000 0039 		RS232_SlaveAddr
+00240 0000 003A 		ssFlags		;Serial Servo flags
+00241 0000 003B 		SysFlags
 00242 0000 	;
-00243 0000 0037 		SysMode
-00244 0000 0038 		RS232_MasterAddr
-00245 0000 0039 		RS232_SlaveAddr
-00246 0000 003A 		ssFlags		;Serial Servo flags
-00247 0000 003B 		SysFlags
-00248 0000 	;
-00249 0000 		endc
+00243 0000 		endc
+00244 0000 	;
+00245 0000 003B 	#Define	SW1_Flag	SysFlags,0
+00246 0000 003B 	#Define	SW2_Flag	SysFlags,1
+00247 0000 003B 	#Define	SW3_Flag	SysFlags,2
+00248 0000 003B 	#Define	LED2_Flag	SysFlags,3
+00249 0000 003B 	#Define	LED3_Flag	SysFlags,4
 00250 0000 	;
-00251 0000 003B 	#Define	SW1_Flag	SysFlags,0
-00252 0000 003B 	#Define	SW2_Flag	SysFlags,1
-00253 0000 003B 	#Define	SW3_Flag	SysFlags,2
-00254 0000 003B 	#Define	LED2_Flag	SysFlags,3
-00255 0000 003B 	#Define	LED3_Flag	SysFlags,4
+00251 0000 0037 	#Define	FirstRAMParam	SysMode
+00252 0000 003B 	#Define	LastRAMParam	SysFlags
+00253 0000 	;
+00254 0000 0030 	#Define	DataReceivedFlag	SerFlags,1
+00255 0000 0030 	#Define	DataSentFlag	SerFlags,2
 00256 0000 	;
-00257 0000 0037 	#Define	FirstRAMParam	SysMode
-00258 0000 003B 	#Define	LastRAMParam	SysFlags
+00257 0000 	;----ssStatus bits
+00258 0000 0031 	#Define	ssRX_Timeout	ssStatus,3	;cleared by host read
 00259 0000 	;
-00260 0000 0030 	#Define	DataReceivedFlag	SerFlags,1
-00261 0000 0030 	#Define	DataSentFlag	SerFlags,2
-00262 0000 	;
-00263 0000 	;----ssStatus bits
-00264 0000 0031 	#Define	ssRX_Timeout	ssStatus,3	;cleared by host read
-00265 0000 	;
-00266 0000 	; all bits of ssStatus+1 are cleared by a host kCmd_GetStatus command.
-00267 0000 	;
-00268 0000 	;================================================================================================
-00269 0000 	;  Bank1 Ram 0A0h-0EFh 80 Bytes
-00270 0000 		cblock	0x0A0
-00271 0000 00A0 		RX_ParseFlags
-00272 0000 00A1 		RX_Flags
-00273 0000 00A2 		RX_DataCount
-00274 0000 00A3 		RX_CSUM
-00275 0000 00A4 		RX_SrcAdd:RP_AddressBytes
-00276 0000 00A5 		RX_DstAdd:RP_AddressBytes
-00277 0000 00A6 		RX_TempData:RP_DataBytes
-00278 0000 00AA 		RX_Data:RP_DataBytes
-00279 0000 00AE 		TX_Data:RP_DataBytes
-00280 0000 		endc
-00281 0000 	;
-00282 0000 	;================================================================================================
-00283 0000 	;  Bank2 Ram 120h-16Fh 80 Bytes
-00284 0000 	;
-00285 0000 0002 	#Define	Ser_Buff_Bank	2
-00286 0000 	;
-00287 0000 		cblock	0x120
-00288 0000 0120 		Ser_In_Bytes		;Bytes in Ser_In_Buff
-00289 0000 0121 		Ser_Out_Bytes		;Bytes in Ser_Out_Buff
-00290 0000 0122 		Ser_In_InPtr
+00260 0000 	; all bits of ssStatus+1 are cleared by a host kCmd_GetStatus command.
+00261 0000 	;
+00262 0000 	;================================================================================================
+00263 0000 	;  Bank1 Ram 0A0h-0EFh 80 Bytes
+00264 0000 		cblock	0x0A0
+00265 0000 00A0 		RX_ParseFlags
+00266 0000 00A1 		RX_Flags
+00267 0000 00A2 		RX_DataCount
+00268 0000 00A3 		RX_CSUM
+00269 0000 00A4 		RX_SrcAdd:RP_AddressBytes
+00270 0000 00A5 		RX_DstAdd:RP_AddressBytes
+00271 0000 00A6 		RX_TempData:RP_DataBytes
+00272 0000 00AA 		RX_Data:RP_DataBytes
+00273 0000 00AE 		TX_Data:RP_DataBytes
+00274 0000 		endc
+00275 0000 	;
+00276 0000 	;================================================================================================
+00277 0000 	;  Bank2 Ram 120h-16Fh 80 Bytes
+00278 0000 	;
+00279 0000 0002 	#Define	Ser_Buff_Bank	2
+00280 0000 	;
+00281 0000 		cblock	0x120
+00282 0000 0120 		Ser_In_Bytes		;Bytes in Ser_In_Buff
+00283 0000 0121 		Ser_Out_Bytes		;Bytes in Ser_Out_Buff
+00284 0000 0122 		Ser_In_InPtr
+00285 0000 0123 		Ser_In_OutPtr
+00286 0000 0124 		Ser_Out_InPtr
+00287 0000 0125 		Ser_Out_OutPtr
+00288 0000 0126 		Ser_In_Buff:20
+00289 0000 0146 		Ser_Out_Buff:20
+00290 0000 		endc
 SimpleServo16PS.asm                                                   Page: 4
 /Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
 
-00291 0000 0123 		Ser_In_OutPtr
-00292 0000 0124 		Ser_Out_InPtr
-00293 0000 0125 		Ser_Out_OutPtr
-00294 0000 0126 		Ser_In_Buff:20
-00295 0000 0146 		Ser_Out_Buff:20
-00296 0000 		endc
-00297 0000 	;
-00298 0000 	;
-00299 0000 	;====================================================================================================
-00300 0000 	;  Part of SimpleServo16
-00301 0000 	;    Defines constants and variables in Banks 3,4,5 and 6
-00302 0000 	;
-00303 0000 		include <ServoLib.h>
+00291 0000 	;
+00292 0000 	;
+00293 0000 	;====================================================================================================
+00294 0000 	;  Part of SimpleServo16
+00295 0000 	;    Defines constants and variables in Banks 3,4,5 and 6
+00296 0000 	;
+00297 0000 		include <ServoLib.h>
 00001 0000 	;====================================================================================================
 00002 0000 	;
 00003 0000 	;    Filename:      ServoLib.h
@@ -406,186 +400,186 @@ SimpleServo16PS.asm                                                   Page: 1
 00084 0000 0001 	InPositionFlag0_7	EQU	1
 00085 0000 0002 	ServoOnBit0_7	EQU	2
 00086 0000 0003 	MovingFWD0_7	EQU	3
-SimpleServo16PS.asm                                                   Page: 5
-/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
-
 00087 0000 0004 	ValueSentFlag8_15	EQU	4
 00088 0000 0005 	InPositionFlag8_15	EQU	5
 00089 0000 0006 	ServoOnBit8_15	EQU	6
 00090 0000 0007 	MovingFWD8_15	EQU	7
 00091 0000 	;
 00092 0000 	; ServoFlags2 Flag bits
+SimpleServo16PS.asm                                                   Page: 5
+/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
+
 00093 0000 0000 	AccelComplete0_7	EQU	0
 00094 0000 0004 	AccelComplete8_15	EQU	4
 00095 0000 	;
 00096 0000 	;=========================================================================================
 00097 0000 	;
-00304 0000 	;
-00305 0000 	;=======================================================================================================
-00306 0000 	;  Common Ram 70-7F same for all banks
-00307 0000 	;      except for ISR_W_Temp these are used for paramiter passing and temp vars
-00308 0000 	;=======================================================================================================
-00309 0000 	;
-00310 0000 		cblock	0x70
-00311 0000 0070 		Param70	
-00312 0000 0071 		Param71	
-00313 0000 0072 		Param72	
-00314 0000 0073 		Param73
-00315 0000 0074 		Param74
-00316 0000 0075 		Param75
-00317 0000 0076 		Param76
-00318 0000 0077 		Param77
-00319 0000 0078 		Param78
-00320 0000 0079 		Param79
-00321 0000 007A 		Param7A
-00322 0000 007B 		Param7B
-00323 0000 007C 		Param7C
-00324 0000 007D 		Param7D
-00325 0000 007E 		Param7E
-00326 0000 007F 		Param7F
-00327 0000 		endc
-00328 0000 	;
-00329 0000 	;
-00330 0000 	;=========================================================================================
-00331 0000 	;Conditions
-00332 0000 0080 	HasISR	EQU	0x80	;used to enable interupts 0x80=true 0x00=false
-00333 0000 	;
-00334 0000 	;=========================================================================================
-00335 0000 	;==============================================================================================
-00336 0000 	; ID Locations
-00337 0000 		__idlocs	0x10d1
-00338 0000 	;
-00339 0000 	;==============================================================================================
-00340 0000 	; EEPROM locations (NV-RAM) 0x00..0x7F (offsets)
-00341 0000 	;
-00342 0000 	; default values
-00343 0000 		ORG	0xF000
-00344 F000 	;
-00345 F000 0000 		de	kSysMode	;nvSysMode
-00346 F001 0001 		de	kRS232_MasterAddr	;nvRS232_MasterAddr
-00347 F002 0002 		de	kRS232_SlaveAddr	;nvRS232_SlaveAddr
-00348 F003 0000 		de	kssFlags	;nvssFlags
-00349 F004 	;
-00350 F004 	; add any new params here
-00351 F004 	;
-00352 F004 0000 		de	0x00	;nvSysFlags
-00353 F005 	;
-00354 F005 		ORG	0xF0FF
-00355 F0FF 0000 		de	0x00	;Skip BootLoader
-00356 F100 	;
-00357 F100 	; EEPROM locations (NV-RAM) 0x00..0x7F (offsets)
-00358 F100 	;
-00359 F100 		cblock	0x0000
+00298 0000 	;
+00299 0000 	;=======================================================================================================
+00300 0000 	;  Common Ram 70-7F same for all banks
+00301 0000 	;      except for ISR_W_Temp these are used for paramiter passing and temp vars
+00302 0000 	;=======================================================================================================
+00303 0000 	;
+00304 0000 		cblock	0x70
+00305 0000 0070 		Param70	
+00306 0000 0071 		Param71	
+00307 0000 0072 		Param72	
+00308 0000 0073 		Param73
+00309 0000 0074 		Param74
+00310 0000 0075 		Param75
+00311 0000 0076 		Param76
+00312 0000 0077 		Param77
+00313 0000 0078 		Param78
+00314 0000 0079 		Param79
+00315 0000 007A 		Param7A
+00316 0000 007B 		Param7B
+00317 0000 007C 		Param7C
+00318 0000 007D 		Param7D
+00319 0000 007E 		Param7E
+00320 0000 007F 		Param7F
+00321 0000 		endc
+00322 0000 	;
+00323 0000 	;
+00324 0000 	;=========================================================================================
+00325 0000 	;Conditions
+00326 0000 0080 	HasISR	EQU	0x80	;used to enable interupts 0x80=true 0x00=false
+00327 0000 	;
+00328 0000 	;=========================================================================================
+00329 0000 	;==============================================================================================
+00330 0000 	; ID Locations
+00331 0000 		__idlocs	0x10d1
+00332 0000 	;
+00333 0000 	;==============================================================================================
+00334 0000 	; EEPROM locations (NV-RAM) 0x00..0x7F (offsets)
+00335 0000 	;
+00336 0000 	; default values
+00337 0000 		ORG	0xF000
+00338 F000 	;
+00339 F000 0000 		de	kSysMode	;nvSysMode
+00340 F001 0001 		de	kRS232_MasterAddr	;nvRS232_MasterAddr
+00341 F002 0002 		de	kRS232_SlaveAddr	;nvRS232_SlaveAddr
+00342 F003 0000 		de	kssFlags	;nvssFlags
+00343 F004 	;
+00344 F004 	; add any new params here
+00345 F004 	;
+00346 F004 0000 		de	0x00	;nvSysFlags
+00347 F005 	;
+00348 F005 		ORG	0xF0FF
+00349 F0FF 0000 		de	0x00	;Skip BootLoader
+00350 F100 	;
+00351 F100 	; EEPROM locations (NV-RAM) 0x00..0x7F (offsets)
+00352 F100 	;
+00353 F100 		cblock	0x0000
+00354 F100 	;
+00355 F100 0000 		nvSysMode
+00356 F100 0001 		nvRS232_MasterAddr
+00357 F100 0002 		nvRS232_SlaveAddr
+00358 F100 0003 		nvssFlags
+00359 F100 0004 		nvSysFlags
 00360 F100 	;
-00361 F100 0000 		nvSysMode
-00362 F100 0001 		nvRS232_MasterAddr
-00363 F100 0002 		nvRS232_SlaveAddr
-00364 F100 0003 		nvssFlags
-00365 F100 0004 		nvSysFlags
+00361 F100 		endc
+00362 F100 	;
+00363 F100 0000 	#Define	nvFirstParamByte	nvSysMode
+00364 F100 0004 	#Define	nvLastParamByte	nvSysFlags
+00365 F100 	;
 00366 F100 	;
-00367 F100 		endc
-00368 F100 	;
-00369 F100 0000 	#Define	nvFirstParamByte	nvSysMode
-00370 F100 0004 	#Define	nvLastParamByte	nvSysFlags
+00367 F100 	;==============================================================================================
+00368 F100 	;============================================================================================
+00369 F100 	;
+00370 F100 1E00 	BootLoaderStart	EQU	0x1E00
 00371 F100 	;
-00372 F100 	;
-00373 F100 	;==============================================================================================
-00374 F100 	;============================================================================================
-00375 F100 	;
-00376 F100 1E00 	BootLoaderStart	EQU	0x1E00
-00377 F100 	;
-00378 F100 		ORG	0x000	; processor reset vector
-00379 0000 319E 		movlp	BootLoaderStart
-00380 0001 2E00 		goto	BootLoaderStart
-00381 0002 018A 	ProgStartVector	CLRF	PCLATH
-00382 0003 29BB 	  	goto	start	; go to beginning of program
+00372 F100 		ORG	0x000	; processor reset vector
+00373 0000 319E 		movlp	BootLoaderStart
+00374 0001 2E00 		goto	BootLoaderStart
+00375 0002 018A 	ProgStartVector	CLRF	PCLATH
+00376 0003 29BB 	  	goto	start	; go to beginning of program
+00377 0004 	;
+00378 0004 	;===============================================================================================
+00379 0004 	; Interupt Service Routine
+00380 0004 	;
+00381 0004 	; we loop through the interupt service routing every 0.008192 seconds
+00382 0004 	;
 00383 0004 	;
-00384 0004 	;===============================================================================================
-00385 0004 	; Interupt Service Routine
-00386 0004 	;
-00387 0004 	; we loop through the interupt service routing every 0.008192 seconds
-00388 0004 	;
-00389 0004 	;
-00390 0004 		ORG	0x004	; interrupt vector location
-00391 0004 0188 		CLRF	BSR	; bank0
+00384 0004 		ORG	0x004	; interrupt vector location
+00385 0004 0188 		CLRF	BSR	; bank0
+00386 0005 018A 		clrf	PCLATH
+00387 0006 	;
+00388 0006 	; Timer 2
+00389 0006 1C91 		BTFSS	PIR1,TMR2IF
+00390 0007 2827 		goto	SystemTick_end
+00391 0008 	;
 SimpleServo16PS.asm                                                   Page: 6
 /Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
 
-00392 0005 018A 		clrf	PCLATH
-00393 0006 	;
-00394 0006 	; Timer 2
-00395 0006 1C91 		BTFSS	PIR1,TMR2IF
-00396 0007 2827 		goto	SystemTick_end
-00397 0008 	;
-00398 0008 1091 		BCF	PIR1,TMR2IF	; reset interupt flag bit
-00399 0009 	;------------------
-00400 0009 	; These routines run 100 times per second
-00401 0009 	;------------------
-00402 0009 	;Decrement timers until they are zero
-00403 0009 	; 
-00404 0009 0185 		CLRF	FSR0H
-00405 000A 206D 		call	DecTimer1	;if timer 1 is not zero decrement
-00406 000B 206B 		call	DecTimer2
-00407 000C 2069 		call	DecTimer3
-00408 000D 2067 		call	DecTimer4
-00409 000E 	;
-00410 000E 	;-----------------------------------------------------------------
-00411 000E 	; blink LEDs
-00412 000E 308D 		MOVLW	LOW TRISB
-00413 000F 0084 		MOVWF	FSR0L
-00414 0010 3000 		MOVLW	HIGH TRISB
-00415 0011 0085 		MOVWF	FSR0H
-00416 0012 	; All LEDs off
-00417 0012 1400 		BSF	INDF0,LED1_Bit
-00418 0013 1600 		BSF	INDF0,LED2_Bit
-00419 0014 1680 		BSF	INDF0,LED3_Bit
-00420 0015 	;
-00421 0015 	; Read SW's
-00422 0015 103B 		BCF	SW1_Flag
-00423 0016 10BB 		BCF	SW2_Flag
-00424 0017 113B 		BCF	SW3_Flag
-00425 0018 1C0D 		BTFSS	SW1_In
-00426 0019 143B 		BSF	SW1_Flag
-00427 001A 1E0D 		BTFSS	SW2_In
-00428 001B 14BB 		BSF	SW2_Flag
-00429 001C 1E8D 		BTFSS	SW3_In
-00430 001D 153B 		BSF	SW3_Flag
-00431 001E 	; Dec LED time
-00432 001E 0BA3 		DECFSZ	SysLED_Count,F	;Is it time?
-00433 001F 3207 		bra	TMR2_Done	; No, not yet
-00434 0020 	;
-00435 0020 0820 		MOVF	SysLED_Time,W
-00436 0021 00A3 		MOVWF	SysLED_Count
-00437 0022 	; Flash LEDs
-00438 0022 1000 		BCF	INDF0,LED1_Bit
-00439 0023 19BB 		BTFSC	LED2_Flag
-00440 0024 1200 		BCF	INDF0,LED2_Bit
-00441 0025 1A3B 		BTFSC	LED3_Flag
-00442 0026 1280 		BCF	INDF0,LED3_Bit
-00443 0027 	;
-00444 0027 	;
-00445 0027 	TMR2_Done:
-00446 0027 	SystemTick_end:	
-00447 0027 	;
-00448 0027 	;=========================================================================================
-00449 0027 0020 		MOVLB	0	;Bank0
-00450 0028 1911 		BTFSC	PIR1,CCP1IF
-00451 0029 21DD 		CALL	ISR_ServoCCP1
-00452 002A 	;
-00453 002A 1812 		BTFSC	PIR2,CCP2IF
-00454 002B 2253 		CALL	ISR_ServoCCP2
-00455 002C 	;
-00456 002C 	;=========================================================================================
-00457 002C 	;-----------------------------------------------------------------------------------------
-00458 002C 	;--------------------------------------------------------------------
-00459 002C 	;
-00460 002C 0009 		retfie		; return from interrupt
-00461 002D 	;
-00462 002D 	;
-00463 002D 	;==============================================================================================
-00464 002D 	;==============================================================================================
-00465 002D 	;
-00466 002D 		include <F1847_Common.inc>
+00392 0008 1091 		BCF	PIR1,TMR2IF	; reset interupt flag bit
+00393 0009 	;------------------
+00394 0009 	; These routines run 100 times per second
+00395 0009 	;------------------
+00396 0009 	;Decrement timers until they are zero
+00397 0009 	; 
+00398 0009 0185 		CLRF	FSR0H
+00399 000A 206D 		call	DecTimer1	;if timer 1 is not zero decrement
+00400 000B 206B 		call	DecTimer2
+00401 000C 2069 		call	DecTimer3
+00402 000D 2067 		call	DecTimer4
+00403 000E 	;
+00404 000E 	;-----------------------------------------------------------------
+00405 000E 	; blink LEDs
+00406 000E 308D 		MOVLW	LOW TRISB
+00407 000F 0084 		MOVWF	FSR0L
+00408 0010 3000 		MOVLW	HIGH TRISB
+00409 0011 0085 		MOVWF	FSR0H
+00410 0012 	; All LEDs off
+00411 0012 1400 		BSF	INDF0,LED1_Bit
+00412 0013 1600 		BSF	INDF0,LED2_Bit
+00413 0014 1680 		BSF	INDF0,LED3_Bit
+00414 0015 	;
+00415 0015 	; Read SW's
+00416 0015 103B 		BCF	SW1_Flag
+00417 0016 10BB 		BCF	SW2_Flag
+00418 0017 113B 		BCF	SW3_Flag
+00419 0018 1C0D 		BTFSS	SW1_In
+00420 0019 143B 		BSF	SW1_Flag
+00421 001A 1E0D 		BTFSS	SW2_In
+00422 001B 14BB 		BSF	SW2_Flag
+00423 001C 1E8D 		BTFSS	SW3_In
+00424 001D 153B 		BSF	SW3_Flag
+00425 001E 	; Dec LED time
+00426 001E 0BA3 		DECFSZ	SysLED_Count,F	;Is it time?
+00427 001F 3207 		bra	TMR2_Done	; No, not yet
+00428 0020 	;
+00429 0020 0820 		MOVF	SysLED_Time,W
+00430 0021 00A3 		MOVWF	SysLED_Count
+00431 0022 	; Flash LEDs
+00432 0022 1000 		BCF	INDF0,LED1_Bit
+00433 0023 19BB 		BTFSC	LED2_Flag
+00434 0024 1200 		BCF	INDF0,LED2_Bit
+00435 0025 1A3B 		BTFSC	LED3_Flag
+00436 0026 1280 		BCF	INDF0,LED3_Bit
+00437 0027 	;
+00438 0027 	;
+00439 0027 	TMR2_Done:
+00440 0027 	SystemTick_end:	
+00441 0027 	;
+00442 0027 	;=========================================================================================
+00443 0027 0020 		MOVLB	0	;Bank0
+00444 0028 1911 		BTFSC	PIR1,CCP1IF
+00445 0029 21DD 		CALL	ISR_ServoCCP1
+00446 002A 	;
+00447 002A 1812 		BTFSC	PIR2,CCP2IF
+00448 002B 2253 		CALL	ISR_ServoCCP2
+00449 002C 	;
+00450 002C 	;=========================================================================================
+00451 002C 	;-----------------------------------------------------------------------------------------
+00452 002C 	;--------------------------------------------------------------------
+00453 002C 	;
+00454 002C 0009 		retfie		; return from interrupt
+00455 002D 	;
+00456 002D 	;
+00457 002D 	;==============================================================================================
+00458 002D 	;==============================================================================================
+00459 002D 	;
+00460 002D 		include <F1847_Common.inc>
 00001 002D 	;=========================================================================================
 00002 002D 	; Commonly used routines PIC16F1847 version
 00003 002D 	;
@@ -610,15 +604,15 @@ SimpleServo16PS.asm                                                   Page: 1
 00022 002D 	; Routines:
 00023 002D 	;
 00024 002D 	; ClearRam	(2+0) Clears all RAM, call once before initializing variables, FSR0
-SimpleServo16PS.asm                                                   Page: 7
-/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
-
 00025 002D 	; CopyToRam	(1+0) copy param memory (EEPROM) to ram, call once, FSR0
 00026 002D 	; SaveParams	(1+0) copy ram to param memory (EEPROM), FSR0
 00027 002D 	;
 00028 002D 	; DecTimer4	(0+0) Decrement routine for 16 bit timers, FSR0
 00029 002D 	; DecTimer3
 00030 002D 	; DecTimer2
+SimpleServo16PS.asm                                                   Page: 7
+/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
+
 00031 002D 	; DecTimer1
 00032 002D 	; DecTimer	(0+0) High byte of counter address in W
 00033 002D 	;
@@ -712,15 +706,15 @@ SimpleServo16PS.asm                                                   Page: 1
 00121 005C 0084 		MOVWF	FSR0L
 00122 005D 0185 		CLRF	FSR0H
 00123 005E 0012 	SaveParams_L1	moviw	FSR0++
-SimpleServo16PS.asm                                                   Page: 8
-/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
-
 00124 005F 00A5 		MOVWF	EEDataTemp
 00125 0060 20A1 		CALL	EEWrite
 00126 0061 0AA4 		INCF	EEAddrTemp,F
 00127 0062 303C 		MOVLW	LastRAMParam+1	;last byte
 00128 0063 0204 		SUBWF	FSR0L,W
 00129 0064 		SKPZ
+SimpleServo16PS.asm                                                   Page: 8
+/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
+
 00129 0064 1D03      M		BTFSS	STATUS,Z		BTFSS	STATUS,Z
 00130 0065 33F8 		BRA	SaveParams_L1
 00131 0066 0008 		RETURN
@@ -814,15 +808,15 @@ SimpleServo16PS.asm                                                   Page: 1
 00233 0097 0824 	EERead	movf	EEAddrTemp,W
 00234 0098 0023 		MOVLB	0x03	;Bank 3
 00235 0099 0091 		movwf	EEADR	;Address to read
-SimpleServo16PS.asm                                                   Page: 9
-/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
-
 00236 009A 1315 		bcf	EECON1,CFGS	;not config mem
 00237 009B 1395 		bcf	EECON1,EEPGD	;Data memory
 00238 009C 1415 		bsf	EECON1,RD
 00239 009D 0813 		movf	EEDAT,W	;W=EEDAT
 00240 009E 0020 		MOVLB	0x00	;Bank 0
 00241 009F 0008 		return
+SimpleServo16PS.asm                                                   Page: 9
+/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
+
 00242 00A0 	;
 00243 00A0 	;==============================================================================================
 00244 00A0 	; Write EEPROM
@@ -872,7 +866,7 @@ SimpleServo16PS.asm                                                   Page: 1
 00288 00B9 	;
 00289 00B9 	;
 00290 00B9 	;
-00467 00B9 		include <SerBuff1938.inc>
+00461 00B9 		include <SerBuff1938.inc>
 00001 00B9 	;=========================================================================================
 00002 00B9 	;
 00003 00B9 	;    Filename:      SerBuff.inc
@@ -916,15 +910,15 @@ SimpleServo16PS.asm                                                   Page: 1
 00041 00B9 	;	Ser_In_OutPtr
 00042 00B9 	;	Ser_Out_InPtr
 00043 00B9 	;	Ser_Out_OutPtr
-SimpleServo16PS.asm                                                   Page: 10
-/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
-
 00044 00B9 	;	Ser_In_Buff:20
 00045 00B9 	;	Ser_Out_Buff:20
 00046 00B9 	;	endc
 00047 00B9 	;
 00048 00B9 	;=========================================================================================
 00049 00B9 	; Routines	(Bank In/Bank Out)
+SimpleServo16PS.asm                                                   Page: 10
+/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
+
 00050 00B9 	;
 00051 00B9 	; TX_TheByte	(0+0) Send one byte to UART
 00052 00B9 	; RX_TheByte	(0+0) Receive one byte from UART
@@ -1018,15 +1012,15 @@ SimpleServo16PS.asm                                                   Page: 1
 00140 00B9 	; Exit: Bank0
 00141 00B9 	;
 00142 00B9 	;
-SimpleServo16PS.asm                                                   Page: 11
-/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
-
 00143 00B9 1930 	TX_TheByte	BTFSC	DataSentFlag
 00144 00BA 0008 		RETURN
 00145 00BB 082E 		MOVF	TXByte,W	
 00146 00BC 0023  a		MOVLB	TXREG	;banksel
 00145 00BD 		BANKSEL	TXREG
 00147 00BD 009A 		MOVWF	TXREG
+SimpleServo16PS.asm                                                   Page: 11
+/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
+
 00148 00BE 0020 		MOVLB	0
 00149 00BF 1530 		BSF	DataSentFlag
 00150 00C0 0008 		RETURN
@@ -1120,15 +1114,15 @@ SimpleServo16PS.asm                                                   Page: 1
 00235 00F8 	;
 00236 00F8 	;=========================================================================================
 00237 00F8 	; Get the number of bytes in the serial input buffer
-SimpleServo16PS.asm                                                   Page: 12
-/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
-
 00238 00F8 	;
 00239 00F8 	; Entry: none
 00240 00F8 	; Exit: W=bytes in buffer, Z
 00241 00F8 	;
 00242 00F8 0022 	GetSerInBytes	MOVLB	Ser_Buff_Bank
 00243 00F9 0820 		MOVF	Ser_In_Bytes,W
+SimpleServo16PS.asm                                                   Page: 12
+/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
+
 00244 00FA 0020 		movlb	0
 00245 00FB 0008 		return
 00246 00FC 	;
@@ -1222,15 +1216,15 @@ SimpleServo16PS.asm                                                   Page: 1
 00332 0127 	;
 00333 0127 	;
 00334 0127 	;
-SimpleServo16PS.asm                                                   Page: 13
-/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
-
 00335 0127 	;
 00336 0127 	;
 00337 0127 	;
 00338 0127 	;
-00468 0127 		include <RS232_Parse.inc>
+00462 0127 		include <RS232_Parse.inc>
 00001 0127 	;=========================================================================================
+SimpleServo16PS.asm                                                   Page: 13
+/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
+
 00002 0127 	;
 00003 0127 	;    Filename:      RS232_Parse.inc
 00004 0127 	;    Date:          5/25/2018
@@ -1263,8 +1257,8 @@ SimpleServo16PS.asm                                                   Page: 1
 00031 0127 	; Packet format: (FF FF) SA0 (SA1) DA0 (DA1) D0 D1 D2 D3 D4 D5 D6 D7 (CS)
 00032 0127 	;  FF = Sync byte, SAn = Source Address, DA = Destination Address,
 00033 0127 	;       Dn = Data, CS Check Sum (xor of Address and Data bytes)
-00034 0127 	;  SA must be RS232_RAddr ( the boss )
-00035 0127 	;  DA must be RS232_MyAddr ( this program )
+00034 0127 	;  SA Sender's Address must be RS232_RAddr ( the boss )
+00035 0127 	;  DA Destination Address must be RS232_MyAddr ( this program )
 00036 0127 	;  If the checksum matches put the data bytes in the RX_Data buffer,
 00037 0127 	;   set RXDataValidFlag and RXDataIsNew.
 00038 0127 	;=========================================================================================
@@ -1324,15 +1318,15 @@ SimpleServo16PS.asm                                                   Page: 1
 00097 0127 	;
 00098 0127 	; *** put in main loop
 00099 0127 	;	CALL	RS232_Parse
-SimpleServo16PS.asm                                                   Page: 14
-/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
-
 00100 0127 	; if RXDataValidFlag is set data may be used
 00101 0127 	;
 00102 0127 	;=========================================================================================
 00103 0127 	; Parse any bytes received by the serial port
 00104 0127 	;
 00105 0127 	; Receive 0xFF,0xFF,SA0,(SA1),DA0,(DA1),Cmd,Data0,Data1,Data2,CS
+SimpleServo16PS.asm                                                   Page: 14
+/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
+
 00106 0127 	;
 00107 0127 	;
 00108 0127 	; Entry: none
@@ -1426,15 +1420,15 @@ SimpleServo16PS.asm                                                   Page: 1
 00204 0160 0021 		movlb	1
 00205 0161 0278 		subwf	Param78,W
 00206 0162 		SKPZ
-SimpleServo16PS.asm                                                   Page: 15
-/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
-
 00206 0162 1D03      M		BTFSS	STATUS,Z		BTFSS	STATUS,Z
 00207 0163 11A1 		bcf	RXDstIsMe
 00208 0164 1620 		bsf	DestAddLoRXd
 00209 0165 0878 		movf	Param78,W
 00210 0166 00A5 		movwf	RX_DstAdd
 00211 0167 06A3 		xorwf	RX_CSUM,F
+SimpleServo16PS.asm                                                   Page: 15
+/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
+
 00212 0168 33F0 		bra	RS232_Parse_Rtn
 00213 0169 	RS232_Parse_DALo_End:
 00214 0169 	;
@@ -1528,15 +1522,15 @@ SimpleServo16PS.asm                                                   Page: 1
 00314 01A2 0020 		movlb	0x00
 00315 01A3 0008 		return
 00316 01A4 	;
-SimpleServo16PS.asm                                                   Page: 16
-/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
-
 00317 01A4 	;=========================================================================================
 00318 01A4 	; Send a data packet
 00319 01A4 	;
 00320 01A4 	;Entry: TX_Data = Data to send 
 00321 01A4 	;Exit: TX_Data is cleared
 00322 01A4 	;Ram used: Param78,Param79,Param7A,FSR0,FSR1
+SimpleServo16PS.asm                                                   Page: 16
+/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
+
 00323 01A4 	;Calls: (1+0) StoreSerOut
 00324 01A4 	;
 00325 01A4 	RS232_Send:
@@ -1606,80 +1600,80 @@ SimpleServo16PS.asm                                                   Page: 1
 00401 01BB 	;
 00402 01BB 	;
 00403 01BB 	;
-00469 01BB 	;
-00470 01BB 	;==============================================================================================
-00471 01BB 	;
-00472 01BB 	start	mLongCall	InitializeIO
-00472 01BB 3189      M		movlp	InitializeIO	                       movlp                  Destination
-00472 01BC 2194      M		call	InitializeIO	                       call                   Destination
-00472 01BD 3181      M		movlp	$	                       movlp                  $
-00473 01BE 	;
-00474 01BE 	;=========================================================================================
-00475 01BE 	; Setup default servo data
-00476 01BE 	;
-00477 01BE 2384 		CALL	ServoInit16
-00478 01BF 2373 		CALL	StartServos
-00479 01C0 	;
-00480 01C0 	;
-00481 01C0 	;=========================================================================================
-00482 01C0 	;*****************************************************************************************
-00483 01C0 	;=========================================================================================
-00484 01C0 0064 	MainLoop	CLRWDT
-00485 01C1 	;
-00486 01C1 20F8 		call	GetSerInBytes
-00487 01C2 		SKPZ		;Any data?
-00487 01C2 1D03      M		BTFSS	STATUS,Z		BTFSS	STATUS,Z
-00488 01C3 2127 		CALL	RS232_Parse	; yes
+00463 01BB 	;
+00464 01BB 	;==============================================================================================
+00465 01BB 	;
+00466 01BB 	start	mLongCall	InitializeIO
+00466 01BB 3189      M		movlp	InitializeIO	                       movlp                  Destination
+00466 01BC 2194      M		call	InitializeIO	                       call                   Destination
+00466 01BD 3181      M		movlp	$	                       movlp                  $
+00467 01BE 	;
+00468 01BE 	;=========================================================================================
+00469 01BE 	; Setup default servo data
+00470 01BE 	;
+00471 01BE 2384 		CALL	ServoInit16
+00472 01BF 2373 		CALL	StartServos
+00473 01C0 	;
+00474 01C0 	;
+00475 01C0 	;=========================================================================================
+00476 01C0 	;*****************************************************************************************
+00477 01C0 	;=========================================================================================
+00478 01C0 0064 	MainLoop	CLRWDT
+00479 01C1 	;
+00480 01C1 20F8 		call	GetSerInBytes
+00481 01C2 		SKPZ		;Any data?
+00481 01C2 1D03      M		BTFSS	STATUS,Z		BTFSS	STATUS,Z
+00482 01C3 2127 		CALL	RS232_Parse	; yes
+00483 01C4 	;
+00484 01C4 0021 		movlb	1
+00485 01C5 1CA1 		btfss	RXDataIsNew
+00486 01C6 3203 		bra	ML_1
+00487 01C7 		mLongCall	HandleRXData
+00487 01C7 3188      M		movlp	HandleRXData	                       movlp                  Destination
 SimpleServo16PS.asm                                                   Page: 17
 /Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
 
-00489 01C4 	;
-00490 01C4 0021 		movlb	1
-00491 01C5 1CA1 		btfss	RXDataIsNew
-00492 01C6 3203 		bra	ML_1
-00493 01C7 		mLongCall	HandleRXData
-00493 01C7 3188      M		movlp	HandleRXData	                       movlp                  Destination
-00493 01C8 2004      M		call	HandleRXData	                       call                   Destination
-00493 01C9 3181      M		movlp	$	                       movlp                  $
-00494 01CA 	ML_1:
-00495 01CA 	;
-00496 01CA 	;
-00497 01CA 2299 		CALL	IdleServos
-00498 01CB 	;	CALL	TestServoLib	;tc
-00499 01CB 	;
-00500 01CB 0020 		MOVLB	0x00
-00501 01CC 183B 		BTFSC	SW1_Flag	;manual reset
-00502 01CD 29BB 		GOTO	start
-00503 01CE 	;
-00504 01CE 	;---------------------
-00505 01CE 	; Handle Serial Communications
-00506 01CE 1A11 		BTFSC	PIR1,TXIF	;TX done?
-00507 01CF 20B9 		CALL	TX_TheByte	; Yes
-00508 01D0 	;
-00509 01D0 	; move any serial data received into the 32 byte input buffer
-00510 01D0 1CB0 		BTFSS	DataReceivedFlag
-00511 01D1 3203 		BRA	ML_Ser_Out
-00512 01D2 082F 		MOVF	RXByte,W
-00513 01D3 10B0 		BCF	DataReceivedFlag
-00514 01D4 20D3 		CALL	StoreSerIn
-00515 01D5 	;
-00516 01D5 	; If the serial data has been sent and there are bytes in the buffer, send the next byte
-00517 01D5 	;
-00518 01D5 1D30 	ML_Ser_Out	BTFSS	DataSentFlag
-00519 01D6 3205 		BRA	ML_Ser_End
-00520 01D7 2116 		CALL	GetSerOut
-00521 01D8 1C78 		BTFSS	Param78,0
-00522 01D9 3202 		BRA	ML_Ser_End
-00523 01DA 00AE 		MOVWF	TXByte
-00524 01DB 1130 		BCF	DataSentFlag
-00525 01DC 	ML_Ser_End:
-00526 01DC 	;----------------------
-00527 01DC 29C0 		goto	MainLoop
-00528 01DD 	;=========================================================================================
-00529 01DD 	;*****************************************************************************************
-00530 01DD 	;=========================================================================================
-00531 01DD 	;
-00532 01DD 		include <ServoLib.inc>
+00487 01C8 2004      M		call	HandleRXData	                       call                   Destination
+00487 01C9 3181      M		movlp	$	                       movlp                  $
+00488 01CA 	ML_1:
+00489 01CA 	;
+00490 01CA 	;
+00491 01CA 2299 		CALL	IdleServos
+00492 01CB 	;	CALL	TestServoLib	;tc
+00493 01CB 	;
+00494 01CB 0020 		MOVLB	0x00
+00495 01CC 183B 		BTFSC	SW1_Flag	;manual reset
+00496 01CD 29BB 		GOTO	start
+00497 01CE 	;
+00498 01CE 	;---------------------
+00499 01CE 	; Handle Serial Communications
+00500 01CE 1A11 		BTFSC	PIR1,TXIF	;TX done?
+00501 01CF 20B9 		CALL	TX_TheByte	; Yes
+00502 01D0 	;
+00503 01D0 	; move any serial data received into the 32 byte input buffer
+00504 01D0 1CB0 		BTFSS	DataReceivedFlag
+00505 01D1 3203 		BRA	ML_Ser_Out
+00506 01D2 082F 		MOVF	RXByte,W
+00507 01D3 10B0 		BCF	DataReceivedFlag
+00508 01D4 20D3 		CALL	StoreSerIn
+00509 01D5 	;
+00510 01D5 	; If the serial data has been sent and there are bytes in the buffer, send the next byte
+00511 01D5 	;
+00512 01D5 1D30 	ML_Ser_Out	BTFSS	DataSentFlag
+00513 01D6 3205 		BRA	ML_Ser_End
+00514 01D7 2116 		CALL	GetSerOut
+00515 01D8 1C78 		BTFSS	Param78,0
+00516 01D9 3202 		BRA	ML_Ser_End
+00517 01DA 00AE 		MOVWF	TXByte
+00518 01DB 1130 		BCF	DataSentFlag
+00519 01DC 	ML_Ser_End:
+00520 01DC 	;----------------------
+00521 01DC 29C0 		goto	MainLoop
+00522 01DD 	;=========================================================================================
+00523 01DD 	;*****************************************************************************************
+00524 01DD 	;=========================================================================================
+00525 01DD 	;
+00526 01DD 		include <ServoLib.inc>
 00001 01DD 	;====================================================================================================
 00002 01DD 	;
 00003 01DD 	;    Filename:      ServoLib.inc
@@ -1732,15 +1726,15 @@ SimpleServo16PS.asm                                                   Page: 1
 00050 01DD 	;  ISR_ServoCCP1
 00051 01DD 	;  ISR_ServoCCP2
 00052 01DD 	;
-SimpleServo16PS.asm                                                   Page: 18
-/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
-
 00053 01DD 	; ServoInit16	Call once to init vars
 00054 01DD 	; StartServos	Call once to start servo system
 00055 01DD 	;
 00056 01DD 	; StartMotion	Call to move a servo,  W=Servo# 0..15, Param7D:Param7C = Dest
 00057 01DD 	; IdleServos	Call from main loop
 00058 01DD 	;
+SimpleServo16PS.asm                                                   Page: 18
+/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
+
 00059 01DD 	; TestServoLib	Call from MainLoop to test, "this is only a test"
 00060 01DD 	;
 00061 01DD 	;=========================================================================================
@@ -1834,15 +1828,15 @@ SimpleServo16PS.asm                                                   Page: 1
 00134 020B 001A 		MOVWI	FSR0++
 00135 020C 	;Set Value Sent Flag
 00136 020C 1401 		BSF	INDF1,ValueSentFlag0_7
-SimpleServo16PS.asm                                                   Page: 19
-/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
-
 00137 020D 1562 		BSF	ServoCtlFlags,CyclePulseEnd1
 00138 020E 0020 		MOVLB	0	; bank 0
 00139 020F 1111 		BCF	PIR1,CCP1IF
 00140 0210 2A57 		GOTO	IRQ_Servo2_PulseOrDwell
 00141 0211 	;
 00142 0211 	;This servo was not active, see if the next one is active
+SimpleServo16PS.asm                                                   Page: 19
+/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
+
 00143 0211 3094 	IRQ_Servo1_InAct	MOVLW	LOW kServoDwellTimeA
 00144 0212 0791 		ADDWF	CCPR1L,F
 00145 0213 3011 		MOVLW	HIGH kServoDwellTimeA
@@ -1936,15 +1930,15 @@ SimpleServo16PS.asm                                                   Page: 1
 00223 0255 2A88 		GOTO	IRQ_Servo2_OL
 00224 0256 	;
 00225 0256 2A96 		GOTO	IRQ_Servo2_X	;tc
-SimpleServo16PS.asm                                                   Page: 20
-/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
-
 00226 0257 	; if not set to do anything fall thru and start a cycle
 00227 0257 	IRQ_Servo2_PulseOrDwell:
 00228 0257 	; FSR1 = ServoFlags+ServoIDX
 00229 0257 0025 		MOVLB	0x05	; bank 5
 00230 0258 0861 		MOVF	ServoIDX,W
 00231 0259 		LOADFSR1W	ServoFlags
+SimpleServo16PS.asm                                                   Page: 20
+/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
+
 00231 0259 3E80      M		addlw	low ServoFlags		addlw 	low ADDRESS
 00231 025A 0086      M		movwf	FSR1L		movwf 	FSR1L
 00231 025B 0187      M		clrf	FSR1H		clrf	FSR1H
@@ -2038,15 +2032,15 @@ SimpleServo16PS.asm                                                   Page: 1
 00302 029B 19E0 		BTFSC	CMDServoIDX,3
 00303 029C 2AA2 		GOTO	IdleServos8_15
 00304 029D 	;
-SimpleServo16PS.asm                                                   Page: 21
-/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
-
 00305 029D 1D00 		BTFSS	INDF0,ServoOnBit0_7	;Is this servo active?
 00306 029E 2B13 		GOTO	IdleServos_Next	; No
 00307 029F 1C00 		BTFSS	INDF0,ValueSentFlag0_7	;Ready for an update?
 00308 02A0 2B13 		GOTO	IdleServos_Next	; No
 00309 02A1 2AA6 		GOTO	IdleServos_Update
 00310 02A2 	;
+SimpleServo16PS.asm                                                   Page: 21
+/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
+
 00311 02A2 1F00 	IdleServos8_15	BTFSS	INDF0,ServoOnBit8_15	;Is this servo active?
 00312 02A3 2B13 		GOTO	IdleServos_Next	; No
 00313 02A4 1E00 		BTFSS	INDF0,ValueSentFlag8_15	;Ready for an update?
@@ -2140,15 +2134,15 @@ SimpleServo16PS.asm                                                   Page: 1
 00390 02E7 	;
 00391 02E7 	;FSR1 = Current Position
 00392 02E7 0025 		MOVLB	0x05	;bank5
-SimpleServo16PS.asm                                                   Page: 22
-/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
-
 00393 02E8 3560 		LSLF	CMDServoIDX,W
 00394 02E9 		LOADFSR1W	SigOutTime
 00394 02E9 3E90      M		addlw	low SigOutTime		addlw 	low ADDRESS
 00394 02EA 0086      M		movwf	FSR1L		movwf 	FSR1L
 00394 02EB 0187      M		clrf	FSR1H		clrf	FSR1H
 00394 02EC 3021      M		movlw	high SigOutTime		movlw	high ADDRESS
+SimpleServo16PS.asm                                                   Page: 22
+/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
+
 00394 02ED 3D87      M		addwfc	FSR1H,F		addwfc	FSR1H,F	;<< needed to work w/ contig ram
 00395 02EE 	;
 00396 02EE 087C 		MOVF	Param7C,W	;SigOutTime
@@ -2242,15 +2236,15 @@ SimpleServo16PS.asm                                                   Page: 1
 00481 032A 0878 		MOVF	Param78,W	;new CurSpd
 00482 032B 0279 		SUBWF	Param79,W	;Max-new Cur
 00483 032C 0878 		MOVF	Param78,W	;new Cur
-SimpleServo16PS.asm                                                   Page: 23
-/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
-
 00484 032D 		SKPB		;new Cur>Max?
 00484 032D 1803      M		BTFSC	STATUS,C		BTFSC	STATUS,C
 00485 032E 0879 		MOVF	Param79,W	; Yes, use max instead
 00486 032F 00F8 		MOVWF	Param78	;New Speed
 00487 0330 	;FSR0 = CMDServoIDX*2 + AccelRampLen
 00488 0330 3560 		LSLF	CMDServoIDX,W	
+SimpleServo16PS.asm                                                   Page: 23
+/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
+
 00489 0331 		LOADFSR0W	AccelRampLen
 00489 0331 3EE0      M		addlw	low AccelRampLen		addlw 	low ADDRESS
 00489 0332 0084      M		movwf	FSR0L		movwf 	FSR0L
@@ -2344,15 +2338,15 @@ SimpleServo16PS.asm                                                   Page: 1
 00554 0363 	;
 00555 0363 	;=========================================================================================
 00556 0363 	; Point FRS0 at ServoFlags2
-SimpleServo16PS.asm                                                   Page: 24
-/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
-
 00557 0363 	;
 00558 0363 	; Entry: Bank 5
 00559 0363 	; Exit: FSR0 >> ServoFlags2
 00560 0363 	;
 00561 0363 0860 	SetFSR0ToServoFlags2	MOVF	CMDServoIDX,W
 00562 0364 3907 		ANDLW	0x07
+SimpleServo16PS.asm                                                   Page: 24
+/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
+
 00563 0365 		LOADFSR0W	ServoFlags2
 00563 0365 3E88      M		addlw	low ServoFlags2		addlw 	low ADDRESS
 00563 0366 0084      M		movwf	FSR0L		movwf 	FSR0L
@@ -2446,15 +2440,15 @@ SimpleServo16PS.asm                                                   Page: 1
 00633 03A0 	;MaxTime 0..15
 00634 03A0 3068 		MOVLW	LOW kMaxPulseWidth
 00635 03A1 00F8 		MOVWF	Param78
-SimpleServo16PS.asm                                                   Page: 25
-/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
-
 00636 03A2 3010 		MOVLW	HIGH kMaxPulseWidth
 00637 03A3 00F9 		MOVWF	Param79
 00638 03A4 23B6 		CALL	StoreWord16Times
 00639 03A5 	; Set ServoFlags
 00640 03A5 	;
 00641 03A5 3022 		MOVLW	DefaultSFlags
+SimpleServo16PS.asm                                                   Page: 25
+/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
+
 00642 03A6 23C7 		CALL	Store8Times
 00643 03A7 	;
 00644 03A7 	; Set current position to center 
@@ -2548,15 +2542,15 @@ SimpleServo16PS.asm                                                   Page: 1
 00712 03E9 1DF8 		BTFSS	Param78,3
 00713 03EA 1500 		BSF	INDF0,ServoOnBit0_7
 00714 03EB 19F8 		BTFSC	Param78,3
-SimpleServo16PS.asm                                                   Page: 26
-/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
-
 00715 03EC 1700 		BSF	INDF0,ServoOnBit8_15
 00716 03ED 	; Clear the AccelComplete Flag
 00717 03ED 0878 		MOVF	Param78,W
 00718 03EE 3907 		ANDLW	0x07
 00719 03EF 		LOADFSR0W	ServoFlags2
 00719 03EF 3E88      M		addlw	low ServoFlags2		addlw 	low ADDRESS
+SimpleServo16PS.asm                                                   Page: 26
+/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
+
 00719 03F0 0084      M		movwf	FSR0L		movwf 	FSR0L
 00719 03F1 0185      M		clrf	FSR0H		clrf	FSR0H
 00719 03F2 3021      M		movlw	high ServoFlags2		movlw	high ADDRESS
@@ -2650,15 +2644,15 @@ SimpleServo16PS.asm                                                   Page: 1
 00900 042B 027D 		SUBWF	Param7D,W	;7D-kMaxPulseWidth
 00901 042C 		SKPNB		;7D<Max?
 00901 042C 1C03      M		BTFSS	STATUS,C		BTFSS	STATUS,C
-SimpleServo16PS.asm                                                   Page: 27
-/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
-
 00902 042D 2C37 		GOTO	ClampMinMax_1	; Yes
 00903 042E 		SKPZ		;7D=Max?
 00903 042E 1D03      M		BTFSS	STATUS,Z		BTFSS	STATUS,Z
 00904 042F 2C47 		GOTO	ClampMinMax_too	; No, its greater.
 00905 0430 0800 		MOVF	INDF0,W	; Yes, MSB was equal check LSB
 00906 0431 027C 		SUBWF	Param7C,W	;7C-kMaxPulseWidth
+SimpleServo16PS.asm                                                   Page: 27
+/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
+
 00907 0432 		SKPNZ		;=kMaxPulseWidth
 00907 0432 1903      M		BTFSC	STATUS,Z		BTFSC	STATUS,Z
 00908 0433 0008 		RETURN		;Yes
@@ -2722,10 +2716,10 @@ SimpleServo16PS.asm                                                   Page: 1
 00957 044C 	;
 00958 044C 	;
 00959 044C 	;
-00533 044C 	;
-00534 044C 	;
-00535 044C 		org 0x800
-00536 0800 		include <SSC16PSCmds.inc>
+00527 044C 	;
+00528 044C 	;
+00529 044C 		org 0x800
+00530 0800 		include <SSC16PSCmds.inc>
 00001 0800 	;=========================================================================================
 00002 0800 	;
 00003 0800 	;    Filename:      SerialServoCmds.inc
@@ -2752,15 +2746,15 @@ SimpleServo16PS.asm                                                   Page: 1
 00024 0800 0083 	kCmd_SetAccel	EQU	0x83	;+2 data (ServoNum,ServoAccelValue), return ACK
 00025 0800 0003 	kCmd_GetAccel	EQU	0x03
 00026 0800 0084 	kCmd_SetServoEnable	EQU	0x84	;+2 data (ServoNum, Enable), return ACK
-SimpleServo16PS.asm                                                   Page: 28
-/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
-
 00027 0800 0004 	kCmd_GetServoEnable	EQU	0x04
 00028 0800 0085 	kCmd_SetMaxSpeed	EQU	0x85	;+2 data (ServoNum,ServoMaxSpeed), return ACK
 00029 0800 0005 	kCmd_GetMaxSpeed	EQU	0x05
 00030 0800 0086 	kCmd_SetMin_uS	EQU	0x86	;+3 data (ServoNum,MinTime), return ACK
 00031 0800 0006 	kCmd_GetMin_uS	EQU	0x06
 00032 0800 0087 	kCmd_SetMax_uS	EQU	0x87	;+3 data (ServoNum,MaxTime), return ACK
+SimpleServo16PS.asm                                                   Page: 28
+/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
+
 00033 0800 0007 	kCmd_GetMax_uS	EQU	0x07
 00034 0800 	;
 00035 0800 	;
@@ -2812,8 +2806,8 @@ SimpleServo16PS.asm                                                   Page: 1
 00070 0812 0085      M		movwf	FSR0+1	                       movwf                  DEST+1
 00071 0813 	;Dispatcher
 00072 0813 	;
-00073 0813 0016 		moviw	FSR1++
-00074 0814 00F8 		movwf	Param78	;aka RX_Data
+00073 0813 0016 		moviw	FSR1++	;get Command
+00074 0814 00F8 		movwf	Param78	;aka RX_Data(0)
 00075 0815 39F0 		andlw                  0xF0
 00076 0816 		SKPZ
 00076 0816 1D03      M		BTFSS	STATUS,Z		BTFSS	STATUS,Z
@@ -2854,15 +2848,15 @@ SimpleServo16PS.asm                                                   Page: 1
 00110 0835 28C3 	                       goto                   Cmd_SetServoEnable
 00111 0836 28EC 	                       goto                   Cmd_SetMaxSpeed
 00112 0837 2902 	                       goto                   Cmd_SetMin_uS
-SimpleServo16PS.asm                                                   Page: 29
-/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
-
 00113 0838 291C 	                       goto                   Cmd_SetMax_uS
 00114 0839 0008 	                       return
 00115 083A 0008 	                       return
 00116 083B 0008 	                       return
 00117 083C 0008 	                       return
 00118 083D 0008 	                       return
+SimpleServo16PS.asm                                                   Page: 29
+/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
+
 00119 083E 0008 	                       return
 00120 083F 0008 	                       return
 00121 0840 0008 	                       return
@@ -2956,15 +2950,15 @@ SimpleServo16PS.asm                                                   Page: 1
 00204 0886 2800 		goto	RS232_Send_S0
 00205 0887 	;
 00206 0887 	;---kCmd_SetCmdPos-------------------
-SimpleServo16PS.asm                                                   Page: 30
-/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
-
 00207 0887 	; Set Command Position
 00208 0887 0016 	Cmd_SetCmdPos	moviw	FSR1++
 00209 0888 390F 		andlw	0x0F	;0 .. 15 only
 00210 0889 00F8 		movwf	Param78	;Servo Number
 00211 088A 35F8 		lslf	Param78,F	;x2
 00212 088B 0016 		moviw	FSR1++
+SimpleServo16PS.asm                                                   Page: 30
+/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
+
 00213 088C 00F9 		movwf	Param79
 00214 088D 0016 		moviw	FSR1++
 00215 088E 00FA 		movwf	Param7A
@@ -3058,15 +3052,15 @@ SimpleServo16PS.asm                                                   Page: 1
 00274 08D6 	;
 00275 08D6 1DF8 	Cmd_SetServoEnable_1	BTFSS	Param78,3
 00276 08D7 1101 		BCF	INDF1,ServoOnBit0_7	;disable servo
-SimpleServo16PS.asm                                                   Page: 31
-/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
-
 00277 08D8 19F8 		BTFSC	Param78,3
 00278 08D9 1301 		BCF	INDF1,ServoOnBit8_15	;disable servo
 00279 08DA 298F 		goto	TX_ACK
 00280 08DB 	;
 00281 08DB 	;---kCmd_GetServoEnable--------------
 00282 08DB 0016 	Cmd_GetServoEnable	moviw	FSR1++
+SimpleServo16PS.asm                                                   Page: 31
+/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
+
 00283 08DC 390F 		andlw	0x0F	;0 .. 15 only
 00284 08DD 00F8 		movwf	Param78	;Servo Number
 00285 08DE 3907 		andlw	0x07	;2 servos per ServoFlags byte
@@ -3160,15 +3154,15 @@ SimpleServo16PS.asm                                                   Page: 1
 00344 0923 00FA 		movwf	Param7A
 00345 0924 		LOADFSR1	MaxTime,Param78
 00345 0924 3060      M		movlw	low MaxTime		movlw 	low ADDRESS 	; load address
-SimpleServo16PS.asm                                                   Page: 32
-/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
-
 00345 0925 0778      M		addwf	Param78,W		addwf	INDEX,W	; add the index value to determine location in array
 00345 0926 0086      M		movwf	FSR1L		movwf 	FSR1L	; load FSR1L with pointer info
 00345 0927 0187      M		clrf	FSR1H		clrf	FSR1H
 00345 0928 3021      M		movlw	high MaxTime		movlw	high ADDRESS
 00345 0929 3D87      M		addwfc	FSR1H,F		addwfc	FSR1H,F
 00346 092A 2895 		goto	Cmd_SetWord7879
+SimpleServo16PS.asm                                                   Page: 32
+/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
+
 00347 092B 	;
 00348 092B 	;---kCmd_GetMax_uS-----------------
 00349 092B 	; Get ServoMax_uS
@@ -3262,15 +3256,15 @@ SimpleServo16PS.asm                                                   Page: 1
 00407 0969 2800 		goto	RS232_Send_S0
 00408 096A 	;
 00409 096A 	;---kCmd_SetSlaveAddr-------------
-SimpleServo16PS.asm                                                   Page: 33
-/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
-
 00410 096A 0016 	Cmd_SetSlaveAddr	moviw	FSR1++
 00411 096B 00B9 		movwf	RS232_SlaveAddr
 00412 096C 		mLongCall	SaveParams
 00412 096C 3180      M		movlp	SaveParams	                       movlp                  Destination
 00412 096D 2059      M		call	SaveParams	                       call                   Destination
 00412 096E 3189      M		movlp	$	                       movlp                  $
+SimpleServo16PS.asm                                                   Page: 33
+/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
+
 00413 096F 2800 		goto	RS232_Send_S0
 00414 0970 	;
 00415 0970 	;---kCmd_SendIDString------------
@@ -3319,7 +3313,7 @@ SimpleServo16PS.asm                                                   Page: 1
 00454 0994 	;
 00455 0994 	;=========================================================================================
 00456 0994 	;=========================================================================================
-00537 0994 		include <ssInit.inc>
+00531 0994 		include <ssInit.inc>
 00001 0994 	;=========================================================================================
 00002 0994 	; call once
 00003 0994 	;=========================================================================================
@@ -3333,7 +3327,7 @@ SimpleServo16PS.asm                                                   Page: 1
 00011 099A 1515 		bsf	OPTION_REG,PS2
 00012 099B 	;
 00013 099B 0021 		MOVLB	0x01	; bank 1
-00014 099C 3072 		MOVLW	OSCCON_Value
+00014 099C 30F0 		MOVLW	OSCCON_Value
 00015 099D 0099 		MOVWF	OSCCON
 00016 099E 3017 		movlw	b'00010111'	; WDT prescaler 1:65536 period is 2 sec (RESET value)
 00017 099F 0097 		movwf	WDTCON
@@ -3349,7 +3343,7 @@ SimpleServo16PS.asm                                                   Page: 1
 00027 09A7 	;
 00028 09A7 	;Setup T2 for 100/s
 00029 09A7 0020 		movlb	0	; bank 0
-00030 09A8 304E 		MOVLW	T2CON_Value
+00030 09A8 304F 		MOVLW	T2CON_Value
 00031 09A9 009C 		MOVWF	T2CON
 00032 09AA 307D 		MOVLW	PR2_Value
 00033 09AB 009B 		MOVWF	PR2
@@ -3364,15 +3358,15 @@ SimpleServo16PS.asm                                                   Page: 1
 00042 09B1 1399 		bcf	T1GCON,TMR1GE	;always count
 00043 09B2 	;	
 00044 09B2 	; clear memory to zero
-SimpleServo16PS.asm                                                   Page: 34
-/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
-
 00045 09B2 		mLongCall	ClearRam
 00045 09B2 3180      M		movlp	ClearRam	                       movlp                  Destination
 00045 09B3 202D      M		call	ClearRam	                       call                   Destination
 00045 09B4 3189      M		movlp	$	                       movlp                  $
 00046 09B5 0064 		CLRWDT
 00047 09B6 		mLongCall	CopyToRam
+SimpleServo16PS.asm                                                   Page: 34
+/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
+
 00047 09B6 3180      M		movlp	CopyToRam	                       movlp                  Destination
 00047 09B7 204C      M		call	CopyToRam	                       call                   Destination
 00047 09B8 3189      M		movlp	$	                       movlp                  $
@@ -3392,14 +3386,14 @@ SimpleServo16PS.asm                                                   Page: 1
 00060 09BF 	;
 00061 09BF 0020 		MOVLB	0x00	;Bank 0
 00062 09C0 	; setup data ports
-00063 09C0 3000 		movlw	PortBValue
+00063 09C0 3004 		movlw	PortBValue
 00064 09C1 008D 		movwf	PORTB	;init port B
 00065 09C2 3018 		movlw	PortAValue
 00066 09C3 008C 		movwf	PORTA
 00067 09C4 0021 		MOVLB	0x01	; bank 1
 00068 09C5 3060 		movlw	PortADDRBits
 00069 09C6 008C 		movwf	TRISA
-00070 09C7 30F3 		movlw	PortBDDRBits	;setup for programer
+00070 09C7 30F7 		movlw	PortBDDRBits	;setup for programer
 00071 09C8 008D 		movwf	TRISB
 00072 09C9 	;
 00073 09C9 		if useRS232
@@ -3443,9 +3437,9 @@ SimpleServo16PS.asm                                                   Page: 1
 00110 09E2 0008 		return
 00111 09E3 	;=============================================================
 00112 09E3 	;=============================================================
-00538 09E3 	;
-00539 09E3 		org BootLoaderStart
-00540 1E00 		include <BootLoader1847.inc>
+00532 09E3 	;
+00533 09E3 		org BootLoaderStart
+00534 1E00 		include <BootLoader1847.inc>
 00001 1E00 	;************************************************
 00002 1E00 	; BootLoader for PIC16F1847
 00003 1E00 	; filename: Bootloader1847.inc
@@ -3466,15 +3460,15 @@ SimpleServo16PS.asm                                                   Page: 1
 00018 1E00 	; Must be the last thing in prog mem, will not overwrite itself or anything after it.
 00019 1E00 	;
 00020 1E00 	;BootLoaderStart	EQU	0x1E00
-SimpleServo16PS.asm                                                   Page: 35
-/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
-
 00021 1E00 	;	org BootLoaderStart
 00022 1E00 	;	include <Bootloader1847.inc>
 00023 1E00 	;
 00024 1E00 	;  Reset vector:
 00025 1E00 	;  	movlp	high BootLoaderStart
 00026 1E00 	;    	goto	BootLoaderStart
+SimpleServo16PS.asm                                                   Page: 35
+/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
+
 00027 1E00 	;  ProgStartVector	CLRF	PCLATH
 00028 1E00 	;	goto	Start
 00029 1E00 	;
@@ -3568,15 +3562,15 @@ SimpleServo16PS.asm                                                   Page: 1
 00117 1E00 	; Exit: goto ProgStartVector
 00118 1E00 	; Calls: none
 00119 1E00 	; RAM used: ALL
-SimpleServo16PS.asm                                                   Page: 36
-/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
-
 00120 1E00 	;
 00121 1E00 279E 	BootLoader	call	InitializeBLIO	;returns w/ bank 0 selected
 00122 1E01 	;
 00123 1E01 2704 		call	ReadEEData	;Get Data from EEPROM (0xFF) 
 00124 1E02 3AFF 		xorlw	0xFF
 00125 1E03 		SKPZ		;0xFF xor 0xFF = 0
+SimpleServo16PS.asm                                                   Page: 36
+/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
+
 00125 1E03 1D03      M		BTFSS	STATUS,Z		BTFSS	STATUS,Z
 00126 1E04 320B 		bra	BootLoader_End
 00127 1E05 	;
@@ -3670,15 +3664,15 @@ SimpleServo16PS.asm                                                   Page: 1
 00209 1E42 000B 	                       brw
 00210 1E43 33CF 	                       bra                    BL_ParseNextLine       ;IHS_WaitForColon already handled
 00211 1E44 3206 	                       bra                    BLP_IHS_Length         ;Waiting for length byte
-SimpleServo16PS.asm                                                   Page: 37
-/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
-
 00212 1E45 3211 	                       bra                    BLP_IHS_AddrMSB        ;IHS_AddrMSB
 00213 1E46 3214 	                       bra                    BLP_IHS_AddrLSB        ;IHS_AddrLSB
 00214 1E47 3217 	                       bra                    BLP_IHS_DataType       ;IHS_DataType
 00215 1E48 321D 	                       bra                    BLP_IHS_Data           ;IHS_Data
 00216 1E49 3225 	                       bra                    BLP_IHS_CSum           ;IHS_CSum
 00217 1E4A 33C8 	                       bra                    BL_ParseNextLine       ;oops
+SimpleServo16PS.asm                                                   Page: 37
+/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
+
 00218 1E4B 	;	
 00219 1E4B 3041 	BLP_IHS_Length	movlw	.65	; Yes, is it in range 0..64?
 00220 1E4C 022B 		subwf	IH_TempVal,W
@@ -3772,15 +3766,15 @@ SimpleServo16PS.asm                                                   Page: 1
 00303 1E8A 	; handle data
 00304 1E8A 2696 	BLPV_Data	call	BufferIHData           ;Move to source buffer
 00305 1E8B 3205 	                       bra                    BLPV_Exit_Ack
-SimpleServo16PS.asm                                                   Page: 38
-/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
-
 00306 1E8C 	;
 00307 1E8C 	;---------------------
 00308 1E8C 	; handle high address change
 00309 1E8C 26DE 	BLPV_HighAddr	call                   FSR0_SerialBuffer
 00310 1E8D 0012 		moviw	FSR0++
 00311 1E8E 00A6 		movwf	IH_Addr_Hi+1
+SimpleServo16PS.asm                                                   Page: 38
+/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
+
 00312 1E8F 0012 		moviw	FSR0++
 00313 1E90 00A5 		movwf	IH_Addr_Hi
 00314 1E91 302A 	BLPV_Exit_Ack	movlw	IH_Ack
@@ -3874,15 +3868,15 @@ SimpleServo16PS.asm                                                   Page: 1
 00398 1EC7 3020 		movlw	BlockWords             ;0x20
 00399 1EC8 0222 		subwf	ProgWordCount,W        ;W = ProgWordCount - 0x20
 00400 1EC9 		SKPNZ		;buffer full?
-SimpleServo16PS.asm                                                   Page: 39
-/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
-
 00400 1EC9 1903      M		BTFSC	STATUS,Z		BTFSC	STATUS,Z
 00401 1ECA 3202 		bra	BLP_WriteBuffer	; Yes, ProgWordCount = 0x20
 00402 1ECB 		SKPNB		;Overflow? This should not happen.
 00402 1ECB 1C03      M		BTFSS	STATUS,C		BTFSS	STATUS,C
 00403 1ECC 0008 		return		; No, ProgWordCount < 0x20
 00404 1ECD 	;
+SimpleServo16PS.asm                                                   Page: 39
+/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
+
 00405 1ECD 	; fall thru to BLP_WriteBuffer
 00406 1ECD 	;=============================================
 00407 1ECD 	; Write SourceBuffer to Prog memory
@@ -3976,15 +3970,15 @@ SimpleServo16PS.asm                                                   Page: 1
 00494 1F02 0020 		MOVLB	0
 00495 1F03 0008 		RETURN
 00496 1F04 	;	
-SimpleServo16PS.asm                                                   Page: 40
-/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
-
 00497 1F04 	;==============================================
 00498 1F04 	; Read EEProm(255)
 00499 1F04 	;
 00500 1F04 	ReadEEData:	
 00501 1F04 0023 		movlb	EEADRL
 00502 1F05 30FF 		MOVLW	0xFF
+SimpleServo16PS.asm                                                   Page: 40
+/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
+
 00503 1F06 0091 		MOVWF	EEADRL
 00504 1F07 	;
 00505 1F07 	;Data Memory
@@ -4078,15 +4072,15 @@ SimpleServo16PS.asm                                                   Page: 1
 00588 1F40 0278 		subwf	Param78,W
 00589 1F41 		SKPZ		;Matches?
 00589 1F41 1D03      M		BTFSS	STATUS,Z		BTFSS	STATUS,Z
-SimpleServo16PS.asm                                                   Page: 41
-/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
-
 00590 1F42 3400 		retlw	0x00	; No
 00591 1F43 	;
 00592 1F43 0BF9 	CB_Next	decfsz	Param79,F
 00593 1F44 33E9 		bra	CompareBlock_L1
 00594 1F45 3401 		retlw	0x01	;It's a match!
 00595 1F46 	;
+SimpleServo16PS.asm                                                   Page: 41
+/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
+
 00596 1F46 	;==============================================
 00597 1F46 	; Fill SourceBuffer w/ 0x3FFF
 00598 1F46 	;
@@ -4180,15 +4174,15 @@ SimpleServo16PS.asm                                                   Page: 1
 00686 1F7A 	; Exit: FSR1 changed
 00687 1F7A 	; 
 00688 1F7A 2772 	WriteProgBlock	call	LoadProgAddr
-SimpleServo16PS.asm                                                   Page: 42
-/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
-
 00689 1F7B 1795 		BSF	EECON1,EEPGD	;Point to program memory
 00690 1F7C 1315 		BCF	EECON1,CFGS	;Not configuration space
 00691 1F7D 1515 		BSF	EECON1,WREN	;Enable writes
 00692 1F7E 1695 		BSF	EECON1,LWLO	;Only Load Write Latches
 00693 1F7F 3020 		movlw	BlockWords
 00694 1F80 00F9 		movwf	Param79
+SimpleServo16PS.asm                                                   Page: 42
+/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
+
 00695 1F81 	;
 00696 1F81 0016 	WriteProgBlock_L1	moviw	FSR1++
 00697 1F82 0093 		movwf	EEDATL
@@ -4236,7 +4230,7 @@ SimpleServo16PS.asm                                                   Page: 1
 00739 1FA3 1495 		bsf	OPTION_REG,PS1	;101 8mhz/4/64=31250hz=32uS/Ct=0.008192S/ISR
 00740 1FA4 1515 		bsf	OPTION_REG,PS2
 00741 1FA5 	;
-00742 1FA5 3072 		MOVLW	OSCCON_Value
+00742 1FA5 30F0 		MOVLW	OSCCON_Value
 00743 1FA6 0099 		MOVWF	OSCCON
 00744 1FA7 3017 		movlw	b'00010111'	; WDT prescaler 1:65536 period is 2 sec (RESET value)
 00745 1FA8 0097 		movwf	WDTCON
@@ -4256,14 +4250,14 @@ SimpleServo16PS.asm                                                   Page: 1
 00765 1FB0 	;
 00766 1FB0 0020 		MOVLB	0x00	;Bank 0
 00767 1FB1 	; setup data ports
-00768 1FB1 3000 		movlw	PortBValue
+00768 1FB1 3004 		movlw	PortBValue
 00769 1FB2 008D 		movwf	PORTB	;init port B
 00770 1FB3 3018 		movlw	PortAValue
 00771 1FB4 008C 		movwf	PORTA
 00772 1FB5 0021 		MOVLB	0x01	; bank 1
 00773 1FB6 3060 		movlw	PortADDRBits
 00774 1FB7 008C 		movwf	TRISA
-00775 1FB8 30F3 		movlw	PortBDDRBits	;setup for programer
+00775 1FB8 30F7 		movlw	PortBDDRBits	;setup for programer
 00776 1FB9 008D 		movwf	TRISB
 00777 1FBA 	;
 00778 1FBA 	; setup serial I/O
@@ -4282,15 +4276,15 @@ SimpleServo16PS.asm                                                   Page: 1
 00791 1FC5 	;	BSF	PIE1,RCIE	; Serial Receive interupt
 00792 1FC5 0020 		movlb	0x00	; bank 0
 00793 1FC6 	;
-SimpleServo16PS.asm                                                   Page: 43
-/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
-
 00794 1FC6 	;	bsf	INTCON,PEIE	; enable periferal interupts
 00795 1FC6 138B 		bcf	INTCON,GIE	; disable interupts
 00796 1FC7 	;
 00797 1FC7 0008 		return
 00798 1FC8 	;
 00799 1FC8 	;
+SimpleServo16PS.asm                                                   Page: 43
+/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
+
 00800 1FC8 	 
 00801 1FC8 	 
 00802 1FC8 	 
@@ -4318,11 +4312,11 @@ SimpleServo16PS.asm                                                   Page: 1
 00824 1FC8 	 
 00825 1FC8 	 
 00826 1FC8 	 
-00541 1FC8 	;
-00542 1FC8 	;
-00543 1FC8 	;
-00544 1FC8 	;
-00545 1FC8 		END
+00535 1FC8 	;
+00536 1FC8 	;
+00537 1FC8 	;
+00538 1FC8 	;
+00539 1FC8 		END
 
 X-Ref Table
 _C	STATUS,C	IdleServos_L1
@@ -4384,15 +4378,15 @@ C	0000 	IdleServos_L1, IdleServos_L2, IdleServos_Accel_2, Store8Times, ClampInt_
 CalcdDwell	02E3 	IRQ_Servo1_PulseOrDwell, IRQ_Servo2_PulseOrDwell
 CalcdDwellH	02E4 	IRQ_Servo1_PulseOrDwell, IRQ_Servo2_PulseOrDwell
 CB_Next ^	1F43 	CompareBlock_L1
-SimpleServo16PS.asm   X-Ref Table                                        Page: 44
-/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
-
 CB_NotBlank ^	1F3B 	CompareBlock_L1
 CCP1CON	0293 	IRQ_Servo1_PulseOrDwell, IRQ_Servo1_InAct, IRQ_Servo_Next, IRQ_Servo1_IntOnly
 		StartServos, InitializeIO
 CCP1IE	0002 	StartServos, InitializeIO
 CCP1IF	0002 	SystemTick_end, IRQ_Servo1_PulseOrDwell, IRQ_Servo1_InAct, IRQ_Servo_Next
 		IRQ_Servo1_X
+SimpleServo16PS.asm   X-Ref Table                                        Page: 44
+/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
+
 CCP2CON	029A 	IRQ_Servo_Next, IRQ_Servo2_PulseOrDwell, IRQ_Servo2_IntOnly, StartServos
 CCP2IE	0000 	StartServos
 CCP2IF	0000 	SystemTick_end, IRQ_Servo_Next, IRQ_Servo2_X
@@ -4486,15 +4480,15 @@ Dispatcher_2 ^	0841 	Dispatcher_1
 Dispatcher_3 ^	0847 	Dispatcher_2
 Dispatcher_4 ^	084D 	Dispatcher_3
 Dispatcher_5 ^	0865 	Dispatcher_4
-SimpleServo16PS.asm   X-Ref Table                                        Page: 45
-/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
-
 Dispatcher_6 ^	086D 	Dispatcher_5
 DwellTime	21B0 	IRQ_Servo1_PulseOrDwell, IRQ_Servo1_OL, IRQ_Servo2_PulseOrDwell, IRQ_Servo2_OL
 EEAddrTemp	0024 	CopyToRam, CopyToRam_L1, SaveParams, SaveParams_L1, DelayWuS_Loop
 		EERead, EEWriteW, EEWrite
 EEADR	0191 	EERead, EEWrite
 EEADRH	0192 	LoadProgAddr
+SimpleServo16PS.asm   X-Ref Table                                        Page: 45
+/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
+
 EEADRL	0191 	ReadEEData, WriteEEData, ReadProgBlock_1, LoadProgAddr, WriteProgBlock_L1
 EECON1	0195 	EERead, EEWrite, EEWriteLoop, ReadEEData, WriteEEData, WriteEEData_L1
 		ReadProgBlock, ReadProgBlock_L1, EraseProgBlock, WriteProgBlock, WriteProgBlock_L1
@@ -4588,15 +4582,15 @@ IdleServos_L2 ^	02FD 	IdleServos_IncAcc
 IdleServos_Minus ^	02DC 	IdleServos_Update, IdleServos_L1
 IdleServos_MovPlus ^	02F4 	IdleServos_Update
 IdleServos_Next ^	0313 	IdleServos, IdleServos8_15, IdleServos_DisInt
-SimpleServo16PS.asm   X-Ref Table                                        Page: 46
-/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
-
 IdleServos_Plus ^	0306 	IdleServos_MovPlus, IdleServos_L2
 IdleServos_Update ^	02A6 	IdleServos
 IdleServos8_15 ^	02A2 	IdleServos
 IDString ^	0979 	Cmd_SendIDString_L1
 IH_Ack	002A 	BootLoaderStart, BLPV_EndCmd, BLPV_Exit_Ack
 IH_Addr_Hi	0025 	BootLoaderStart, BLPV_HighAddr, BufferIHData
+SimpleServo16PS.asm   X-Ref Table                                        Page: 46
+/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
+
 IH_Addr_Lo	0023 	BootLoaderStart, BLP_IHS_AddrMSB, BLP_IHS_AddrLSB, BufferIHData
 		BIHD_PutInBuff
 IH_ByteCount	0028 	BootLoaderStart, BL_ParseNextLine, BLP_IHS_Data, BIHD_PutInBuff_E2
@@ -4682,7 +4676,7 @@ OERR	0001 	RX_TheByte_Err, GetChar_Err
 oldCode	0000 	DecTimer, Store8Times
 OPTION_REG	0095 	InitializeIO, InitializeBLIO
 OSCCON	0099 	InitializeIO, InitializeBLIO
-OSCCON_Value	0072 	InitializeIO, InitializeBLIO
+OSCCON_Value	00F0 	InitializeIO, InitializeBLIO
 Param77	0077 	DelayWuS, DelayWuS_Loop, CompareBlock_L1, CB_NotBlank
 Param78	0078 	StoreSerIn, GetSerIn, StoreSerOut, GetSerOut, RS232_Parse_Byte, RS232_Parse_Sync2
 		RS232_Parse_SALo, RS232_Parse_SALo_end, RS232_Parse_DALo_End, RS232_Parse_Data_end
@@ -4690,15 +4684,15 @@ Param78	0078 	StoreSerIn, GetSerIn, StoreSerOut, GetSerOut, RS232_Parse_Byte, RS
 		IdleServos_L1, IdleServos_DecAcc, IdleServos_Minus, IdleServos_MovPlus, IdleServos_L2
 		IdleServos_IncAcc, IdleServos_Plus, IdleServos_Accel_2, SaveSpeed, ServoInit16
 		StoreWord16Times_L1, Store16Times, StoreXTimes, Store8Times, ClampInt_tooHigh, ClampMinMax_1
-SimpleServo16PS.asm   X-Ref Table                                        Page: 47
-/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
-
 		HandleRXData_1, Dispatcher_1, Dispatcher_2, Dispatcher_3, Dispatcher_4, Dispatcher_5
 		Cmd_SetCmdPos, Cmd_GetCmdPos, Cmd_SetAccel, Cmd_GetAccel, Cmd_SetServoEnable, Cmd_SetServoEnable_1
 		Cmd_GetServoEnable, Cmd_SetMaxSpeed, Cmd_GetMaxSpeed, Cmd_SetMin_uS, Cmd_GetMin_uS
 		Cmd_SetMax_uS, Cmd_GetMax_uS, Cmd_GetCurSpeed, Cmd_GetCurPos, BLP_L2, BLP_TestNum
 		BLP_TestNum_1, BLP_TestNum_2, BLP_IHS_CSum, BufferIHData, CompareBlock_L1, CB_NotBlank
 Param79	0079 	RS232_Send, RS232_Send_L1, IdleServos_Accel_2, ServoInit16, StoreWord16Times_L1
+SimpleServo16PS.asm   X-Ref Table                                        Page: 47
+/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
+
 		StoreXTimes, StoreXTimes_L1, Cmd_SetCmdPos, Cmd_SetWord7879, Cmd_SetAccel, Cmd_SetByte79
 		Cmd_SetServoEnable, Cmd_SetMaxSpeed, Cmd_SetMin_uS, Cmd_SetMax_uS, Cmd_SendIDString
 		Cmd_SendIDString_L1, BIHD_PutInBuff_E2, BIHD_PutInBuff_L1, TestErased, TestErased_L1
@@ -4725,8 +4719,8 @@ PORTA	000C 	InitializeIO, InitializeBLIO
 PortADDRBits	0060 	InitializeIO, InitializeBLIO
 PortAValue	0018 	InitializeIO, InitializeBLIO
 PORTB	000D 	ProgStartVector, InitializeIO, InitializeBLIO
-PortBDDRBits	00F3 	InitializeIO, InitializeBLIO
-PortBValue	0000 	InitializeIO, InitializeBLIO
+PortBDDRBits	00F7 	InitializeIO, InitializeBLIO
+PortBValue	0004 	InitializeIO, InitializeBLIO
 PR2	001B 	InitializeIO
 PR2_Value	007D 	InitializeIO
 PROG_ADDR_HI	0021 	BootLoaderStart, BufferIHData, BIHD_PutInBuff, LoadProgAddr
@@ -4792,15 +4786,15 @@ SaveSpeed ^	0342 	IdleServos_Accel_2
 SendChar ^	1EFE 	BootLoaderStart, BLP_IHS_Length, BLP_IHS_CSum, BLPV_EndCmd, BLPV_Exit
 		SendChar
 Ser_Buff_Bank	2	StoreSerIn, GetSerIn, FlushInBuff, GetSerInBytes, StoreSerOut, GetSerOut
-SimpleServo16PS.asm   X-Ref Table                                        Page: 48
-/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
-
 Ser_In_Buff	0126 	StoreSerIn, GetSerIn, StoreSerOut, GetSerOut
 Ser_In_Bytes	0120 	StoreSerIn, GetSerIn, FlushInBuff, GetSerInBytes
 Ser_In_InPtr	0122 	StoreSerIn, FlushInBuff
 Ser_In_OutPtr	0123 	GetSerIn, FlushInBuff
 Ser_Out_Buff	0146 	StoreSerOut, GetSerOut
 Ser_Out_Bytes	0121 	GetSerInBytes, StoreSerOut, GetSerOut
+SimpleServo16PS.asm   X-Ref Table                                        Page: 48
+/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
+
 Ser_Out_InPtr	0124 	StoreSerOut
 Ser_Out_OutPtr	0125 	GetSerOut
 SerFlags	0030 	TX_TheByte, ML_1, ML_Ser_Out
@@ -4868,7 +4862,7 @@ T1CON	0018 	InitializeIO
 T1CON_Val	0001 	InitializeIO
 T1GCON	0019 	InitializeIO
 T2CON	001C 	InitializeIO
-T2CON_Value	004E 	InitializeIO
+T2CON_Value	004F 	InitializeIO
 TestErased ^	1F1F 	BLP_WriteBuffer
 TestErased_L1 ^	1F21 	TestErased_L1
 Timer1Hi	0027 	DecTimer1, DecTimer
@@ -4894,15 +4888,15 @@ TXByte	002E 	TX_TheByte, ML_Ser_Out
 TXIF	0004 	ML_1, SendChar
 TXREG	019A 	TX_TheByte, SendChar
 TXSTA	019E 	InitializeIO, InitializeBLIO
-SimpleServo16PS.asm   X-Ref Table                                        Page: 49
-/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
-
 TXSTA_Value	0024 	InitializeIO, InitializeBLIO
 UseAltSerialPort	0000 	InitializeBLIO
 UseEEParams	0001 	ClearRam, CopyToRam
 useRS232	0001 	InitializeIO
 UseRS232Chksum	0001 	RS232_Parse, RS232_Parse_DALo_End, RS232_Parse_Data_end, RS232_Send_L1
 UseRS232SendSyncBytes	0000 	RS232_Parse, RS232_Send
+SimpleServo16PS.asm   X-Ref Table                                        Page: 49
+/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
+
 UseRS232SyncBytes	0001 	RS232_Parse, RS232_Parse_Byte
 ValueSentFlag0_7	0000 	IRQ_Servo1_PulseOrDwell, IdleServos, IdleServos_Update
 ValueSentFlag8_15	0004 	IRQ_Servo2_PulseOrDwell, IdleServos8_15, IdleServos_Update
@@ -4996,15 +4990,15 @@ Memory Usage Map ('X' = Used, '-' = Unused)
 08C0  : XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX
 0900  : XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX
 0940  : XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX
-SimpleServo16PS.asm   Memory Usage Map                                   Page: 50
-/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
-
 0980  : XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX
 09C0  : XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXX------------- ----------------
 1E00  : XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX
 1E40  : XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX
 1E80  : XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX
 1EC0  : XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX
+SimpleServo16PS.asm   Memory Usage Map                                   Page: 50
+/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
+
 1F00  : XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX
 1F40  : XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX
 1F80  : XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX

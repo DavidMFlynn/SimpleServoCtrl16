@@ -46,13 +46,6 @@ InitializeIO	MOVLB	0x01	; select bank 1
 	CLRWDT
 	mLongCall	CopyToRam
 ;
-; setup ccp1
-;
-	BANKSEL	CCP1CON	;Bank 5
-	CLRF	CCP1CON
-;
-	MOVLB	0x01	;Bank 1
-	bsf	PIE1,CCP1IE
 ;
 ; Setup CCP1 & CCP2
 	MOVLB	0x02	; bank 2

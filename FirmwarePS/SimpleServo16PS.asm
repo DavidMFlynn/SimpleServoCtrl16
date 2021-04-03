@@ -132,8 +132,8 @@ Servo_AddrDataMask	EQU	0xF8
 ;
 ;
 ;    Port B bits
-PortBDDRBits	EQU	b'11110011'	;LEDs Out Others In
-PortBValue	EQU	b'00000000'
+PortBDDRBits	EQU	b'11110111'	;LEDs Out Others In
+PortBValue	EQU	b'00000100'
 ANSELB_Val	EQU	b'00000000'
 ;
 #Define	SW1_In	PORTB,0	;SW1/LED1
@@ -159,10 +159,10 @@ LED3_Bit	EQU	5	;LED3 (Active Low Output)
 All_In	EQU	0xFF
 All_Out	EQU	0x00
 ;
-OSCCON_Value	EQU	b'01110010'	;8MHz
-;OSCCON_Value	EQU	b'11110000'	;32MHz
-T2CON_Value	EQU	b'01001110'	;T2 On, /16 pre, /10 post
-;T2CON_Value	EQU	b'01001111'	;T2 On, /64 pre, /10 post
+;OSCCON_Value	EQU	b'01110010'	;8MHz
+OSCCON_Value	EQU	b'11110000'	;32MHz
+;T2CON_Value	EQU	b'01001110'	;T2 On, /16 pre, /10 post
+T2CON_Value	EQU	b'01001111'	;T2 On, /64 pre, /10 post
 PR2_Value	EQU	.125
 ;
 LEDTIME	EQU	d'100'	;1.00 seconds
@@ -179,15 +179,9 @@ TMR1H_Val	EQU	0xF6
 ;TMR1L_Val	EQU	0x8F	; -625 = 0.625 mS, 1600 steps/sec
 ;TMR1H_Val	EQU	0xFD
 ;
-;TXSTA_Value	EQU	b'00100000'	;8 bit, TX enabled, Async, low speed
 TXSTA_Value	EQU	b'00100100'	;8 bit, TX enabled, Async, high speed
 RCSTA_Value	EQU	b'10010000'	;RX enabled, 8 bit, Continious receive
 BAUDCON_Value	EQU	b'00001000'	;BRG16=1
-; 8MHz clock low speed (BRGH=0,BRG16=1)
-;Baud_300	EQU	d'1666'	;0.299, -0.02%
-;Baud_1200	EQU	d'416'	;1.199, -0.08%
-;Baud_2400	EQU	d'207'	;2.404, +0.16%
-;Baud_9600	EQU	d'51'	;9.615, +0.16%
 ; 32MHz clock low speed (BRGH=1,BRG16=1)
 Baud_300	EQU	.26666	;300, 0.00%
 Baud_1200	EQU	.6666	;1200, 0.00%
