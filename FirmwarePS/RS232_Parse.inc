@@ -31,8 +31,8 @@
 ; Packet format: (FF FF) SA0 (SA1) DA0 (DA1) D0 D1 D2 D3 D4 D5 D6 D7 (CS)
 ;  FF = Sync byte, SAn = Source Address, DA = Destination Address,
 ;       Dn = Data, CS Check Sum (xor of Address and Data bytes)
-;  SA must be RS232_RAddr ( the boss )
-;  DA must be RS232_MyAddr ( this program )
+;  SA Sender's Address must be RS232_RAddr ( the boss )
+;  DA Destination Address must be RS232_MyAddr ( this program )
 ;  If the checksum matches put the data bytes in the RX_Data buffer,
 ;   set RXDataValidFlag and RXDataIsNew.
 ;=========================================================================================

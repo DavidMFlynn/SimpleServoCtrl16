@@ -70,8 +70,8 @@ HandleRXData_1	movlb	0	;bank 0
 	mMOVLF	TX_Data,FSR0
 ;Dispatcher
 ;
-	moviw	FSR1++
-	movwf	Param78	;aka RX_Data
+	moviw	FSR1++	;get Command
+	movwf	Param78	;aka RX_Data(0)
 	andlw                  0xF0
 	SKPZ
 	bra                    Dispatcher_1
