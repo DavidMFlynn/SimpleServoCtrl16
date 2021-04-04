@@ -57,7 +57,7 @@
 ; RAM used: All
 ; Calls:(2+0) ClearRam_L2
 ;
-ClearRam	MOVLB	0x00
+ClearRam	MOVLB	0x00	;Bank 0
 	MOVLW	0x5F	;Clear 20h-7Eh, 95 bytes
 	MOVWF	Param7F
 	MOVLW	0x20

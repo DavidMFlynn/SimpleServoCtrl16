@@ -35,6 +35,7 @@ kCmd_GetMax_uS	EQU	0x07
 ;
 kCmd_GetCurSpeed	EQU	0x91	;+1 Data (ServoNum) return ServoCurSpeed
 kCmd_GetCurPos	EQU	0x92	;+1 Data (ServoNum) Return SigOutTime
+kCmd_GetInPosition	EQU	0x93	;+1 Data (ServoNum) Return InPositionFlag
 ;
 kCmd_SaveParams	EQU	0x94	;Save all eeprom params, return ACK
 kCmd_RestoreParams	EQU	0x95	;Copy to ram, return ACK
@@ -147,11 +148,11 @@ Dispatcher_4           movf                   Param78,W
                        return                                        ;0x90 not used
                        goto                   Cmd_GetCurSpeed
                        goto                   Cmd_GetCurPos
-                       return
+                       goto	Cmd_GetInPosition
                        goto                   Cmd_SaveParams
                        goto                   Cmd_RestoreParams
-                       return
                        return                 
+                       return
                        goto                   Cmd_GetStatus
                        reset                                         ;Cmd_ReBoot
                        goto                   Cmd_RunBootloader
@@ -208,12 +209,14 @@ Cmd_GetMode	movf	SysMode,W
 Cmd_SetCmdPos	moviw	FSR1++
 	andlw	0x0F	;0 .. 15 only
 	movwf	Param78	;Servo Number
-	lslf	Param78,F	;x2
 	moviw	FSR1++
-	movwf	Param79
+	movwf	Param7C
 	moviw	FSR1++
-	movwf	Param7A
-	LOADFSR1	CMDSigTime,Param78
+	movwf	Param7D
+	movf	Param78,W
+	mLongCall	StartMotion
+	goto	TX_ACK
+;
 Cmd_SetWord7879	movf	Param79,W
 	movwi	FSR1++
 	movf	Param7A,W
@@ -260,7 +263,7 @@ Cmd_SetServoEnable	moviw	FSR1++
 	andlw	0x0F	;0 .. 15 only
 	movwf	Param78	;Servo Number
 	moviw	FSR1++
-	movwf	Param79
+	movwf	Param79	;0 = Off, 1= On
 	movf	Param78,W
 	andlw	0x07	;2 servos per ServoFlags byte
 	LOADFSR1W	ServoFlags
@@ -368,6 +371,22 @@ Cmd_GetCurPos	moviw	FSR1++
 	lslf	Param78,F	;x2
 	LOADFSR1	SigOutTime,Param78
 	goto	Cmd_GetWord
+;
+;---kCmd_GetInPosition---------------
+Cmd_GetInPosition	moviw	FSR1++
+	andlw	0x0F	;0 .. 15 only
+	movwf	Param78	;Servo Number
+	andlw	0x07	;2 servos per ServoFlags byte
+	LOADFSR1W	ServoFlags
+	BTFSC	Param78,3
+	bra	Cmd_GetInPosition_1
+	btfsc	INDF1,InPositionFlag0_7 ;Is in position?
+	bsf	INDF0,0	; Yes
+	goto	RS232_Send_S0
+;
+Cmd_GetInPosition_1	btfsc	INDF1,InPositionFlag8_15 ;Is in position?
+	bsf	INDF0,0	; Yes
+	goto	RS232_Send_S0
 ;
 ;---kCmd_SaveParams-----------------
 Cmd_SaveParams	mLongCall	SaveParams

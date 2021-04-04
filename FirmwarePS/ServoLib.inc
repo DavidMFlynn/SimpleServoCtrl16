@@ -579,7 +579,7 @@ SetFSR0ToServoFlags	MOVF	CMDServoIDX,W
 ; Set CCP1/2 to cause an interrupt the next time T1 matches CCPRn
 ; Call Once to activate servos
 ;
-StartServos	MOVLB	0x02	; bank 2
+StartServos	MOVLB	0x02	;Bank 2, LATA
 	BCF	Enable0_7	; Active Low Output
 	BCF	Enable8_15
 	MOVLB	0x05
@@ -591,7 +591,7 @@ StartServos	MOVLB	0x02	; bank 2
 	MOVWF	CCP1CON
 	MOVWF	CCP2CON
 	BSF	ServoCtlFlags,CyclePulseStart
-	MOVLB	0x01
+	MOVLB	0x01	;Bank 1
 	BSF	PIE1,CCP1IE
 	BSF	PIE2,CCP2IE
 	MOVLB	0x00	;Bank 0
@@ -606,30 +606,30 @@ StartServos	MOVLB	0x02	; bank 2
 ;
 ServoInit16	CLRW
 	LOADFSR0W	ServoMaxSpeed
-;ServoMaxSpeed 0..15
+;ServoMaxSpeed 0..15, ServoMaxSpeed
 	MOVLW	DefaultMaxSpeed
 	CALL	Store16Times
-;ServoAccelValue 0..15
+;ServoAccelValue 0..15, ServoAccelValue
 	MOVLW	DefaultAccel
 	CALL	Store16Times
-;ServoCurSpeed 0..15
+;ServoCurSpeed 0..15, ServoCurSpeed
 	MOVLW	0x01
 	CALL	Store16Times	;CurSpeed=min
 ;
-; Set Command position to center
-	CLRW
-	LOADFSR0W	CMDSigTime
+; Set Command position to center, CMDSigTime
 	MOVLW	LOW kCenterPulseWidth
 	MOVWF	Param78
 	MOVLW	HIGH kCenterPulseWidth
 	MOVWF	Param79
 	CALL	StoreWord16Times
-; Set minimum time MinTime0_7,MinTime8_15
+;
+; Set minimum time, MinTime
 	MOVLW	LOW kMinPulseWidth
 	MOVWF	Param78
 	MOVLW	HIGH kMinPulseWidth
 	MOVWF	Param79
 	CALL	StoreWord16Times
+;
 ;MaxTime 0..15
 	MOVLW	LOW kMaxPulseWidth
 	MOVWF	Param78

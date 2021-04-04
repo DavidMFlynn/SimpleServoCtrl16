@@ -169,15 +169,7 @@ LEDTIME	EQU	d'100'	;1.00 seconds
 LEDErrorTime	EQU	d'10'
 LEDFastTime	EQU	d'20'
 ;
-T1CON_Val	EQU	b'00000001'	;PreScale=1,Fosc/4,Timer ON
-TMR1L_Val	EQU	0x3C	; -2500 = 2.5 mS, 400 steps/sec
-TMR1H_Val	EQU	0xF6
-;
-;TMR1L_Val	EQU	0x1E	; -1250 = 1.25 mS, 800 steps/sec
-;TMR1H_Val	EQU	0xFB
-;
-;TMR1L_Val	EQU	0x8F	; -625 = 0.625 mS, 1600 steps/sec
-;TMR1H_Val	EQU	0xFD
+T1CON_Val	EQU	b'00100001'	;Fosc=32MHz, PreScale=4, Fosc/4, Timer ON
 ;
 TXSTA_Value	EQU	b'00100100'	;8 bit, TX enabled, Async, high speed
 RCSTA_Value	EQU	b'10010000'	;RX enabled, 8 bit, Continious receive
@@ -372,6 +364,7 @@ BootLoaderStart	EQU	0x1E00
 	ORG	0x000	; processor reset vector
 	movlp	BootLoaderStart
 	goto	BootLoaderStart
+;
 ProgStartVector	CLRF	PCLATH
   	goto	start	; go to beginning of program
 ;
@@ -395,7 +388,6 @@ ProgStartVector	CLRF	PCLATH
 ;------------------
 ;Decrement timers until they are zero
 ; 
-	CLRF	FSR0H
 	call	DecTimer1	;if timer 1 is not zero decrement
 	call	DecTimer2
 	call	DecTimer3
@@ -429,15 +421,26 @@ ProgStartVector	CLRF	PCLATH
 	MOVF	SysLED_Time,W
 	MOVWF	SysLED_Count
 ; Flash LEDs
-	BCF	INDF0,LED1_Bit
+	BCF	INDF0,LED1_Bit	;Sys LED ON
 	BTFSC	LED2_Flag
-	BCF	INDF0,LED2_Bit
+	BCF	INDF0,LED2_Bit	;LED 2 ON
 	BTFSC	LED3_Flag
-	BCF	INDF0,LED3_Bit
+	BCF	INDF0,LED3_Bit	;LED 3 ON
 ;
 ;
 TMR2_Done:
 SystemTick_end:	
+;
+;-----------------------------------------------------------------------------------------
+;AUSART Serial ISR
+;
+	movlb	0	;bank 0
+	BTFSS	PIR1,RCIF	;RX has a byte?
+	BRA	IRQ_Ser_End
+	CALL	RX_TheByte
+;
+IRQ_Ser_End:
+;-----------------------------------------------------------------------------------------
 ;
 ;=========================================================================================
 	MOVLB	0	;Bank0
@@ -481,22 +484,15 @@ MainLoop	CLRWDT
 	SKPZ		;Any data?
 	CALL	RS232_Parse	; yes
 ;
+;---------------------
+; Handle Serial Communications
+;
 	movlb	1
 	btfss	RXDataIsNew
 	bra	ML_1
 	mLongCall	HandleRXData
-ML_1:
+ML_1	movlb	0	;Bank 0
 ;
-;
-	CALL	IdleServos
-;	CALL	TestServoLib	;tc
-;
-	MOVLB	0x00
-	BTFSC	SW1_Flag	;manual reset
-	GOTO	start
-;
-;---------------------
-; Handle Serial Communications
 	BTFSC	PIR1,TXIF	;TX done?
 	CALL	TX_TheByte	; Yes
 ;
@@ -518,6 +514,14 @@ ML_Ser_Out	BTFSS	DataSentFlag
 	BCF	DataSentFlag
 ML_Ser_End:
 ;----------------------
+;
+	CALL	IdleServos
+;	CALL	TestServoLib	;tc
+;
+	MOVLB	0x00
+	BTFSC	SW1_Flag	;manual reset
+	GOTO	start
+;
 	goto	MainLoop
 ;=========================================================================================
 ;*****************************************************************************************
