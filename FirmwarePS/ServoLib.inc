@@ -655,7 +655,8 @@ ServoInit16	CLRW
 	MOVWF	Param78
 	MOVLW	HIGH kServoDwellTime
 	MOVWF	Param79
-; Fall thu to StoreWord16Times
+	call	StoreWord16Times
+	bra	EEPromToServoParams
 ;
 StoreWord16Times	MOVLW	.16
 	MOVWF	Param7A
@@ -679,6 +680,69 @@ StoreXTimes_L1	MOVWI	FSR0++
 Store8Times	MOVWF	Param78
 	MOVLW	.8
 	GOTO	StoreXTimes
+;
+;===========================================================================
+; copy eeprom to ram
+;
+;	nvServoMaxSpeed:10		;0=no Accel, 1..255 counts/20mS
+;	nvServoAccelValue:10		;1..8 counts/20mS squared
+;	nvMinTime:20		;Minimum pulse time (900uS=1800)
+;	nvMaxTime:20		;Maximum pulse time (2100uS=4200)
+;	nvServoFlags:8		;4 bits per servo
+;
+EEPromToServoParams	movlb	0	;Bank 0
+	MOVLW	nvServoMaxSpeed
+	MOVWF	EEAddrTemp
+	MOVLW	LOW ServoMaxSpeed
+	MOVWF	FSR0L
+	MOVLW	HIGH ServoMaxSpeed
+	MOVWF	FSR0H
+	movlw	0x20	;ServoMaxSpeed + ServoAccelValue
+	movwf	Param79
+	call	ETSP_L1
+;
+	MOVLW	LOW MinTime
+	MOVWF	FSR0L
+	MOVLW	HIGH MinTime
+	MOVWF	FSR0H
+	movlw	0x48	;MinTime + MaxTime + ServoFlags
+	movwf	Param79
+;
+ETSP_L1	CALL	EERead
+	movwi	FSR0++
+	INCF	EEAddrTemp,F
+	decfsz	Param79,F
+	BRA	ETSP_L1
+	RETURN
+;
+;===========================================================================
+; copy ram to eeprom
+;
+ServoParamsToEEProm	movlb	0	;Bank 0
+	MOVLW	nvServoMaxSpeed
+	MOVWF	EEAddrTemp
+	MOVLW	LOW ServoMaxSpeed
+	MOVWF	FSR0L
+	MOVLW	HIGH ServoMaxSpeed
+	MOVWF	FSR0H
+	movlw	0x20	;ServoMaxSpeed + ServoAccelValue
+	movwf	Param79
+	call	SPTE_L1
+;
+	MOVLW	LOW MinTime
+	MOVWF	FSR0L
+	MOVLW	HIGH MinTime
+	MOVWF	FSR0H
+	movlw	0x48	;MinTime + MaxTime + ServoFlags
+	movwf	Param79
+;
+SPTE_L1	moviw	FSR0++
+	MOVWF	EEDataTemp
+	CALL	EEWrite
+	INCF	EEAddrTemp,F
+	decfsz	Param79,F
+	BRA	SPTE_L1
+	RETURN
 ;
 ;=========================================================================================
 ; Entry: W=Servo# 0..15, Param7D:Param7C = Dest

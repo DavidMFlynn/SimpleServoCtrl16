@@ -390,10 +390,12 @@ Cmd_GetInPosition_1	btfsc	INDF1,InPositionFlag8_15 ;Is in position?
 ;
 ;---kCmd_SaveParams-----------------
 Cmd_SaveParams	mLongCall	SaveParams
+	mLongCall	ServoParamsToEEProm
 	goto	TX_ACK
 ;
 ;---kCmd_RestoreParams--------------
 Cmd_RestoreParams	mLongCall	CopyToRam
+	mLongCall	EEPromToServoParams
 	goto	TX_ACK
 ;
 ;

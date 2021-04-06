@@ -337,6 +337,12 @@ HasISR	EQU	0x80	;used to enable interupts 0x80=true 0x00=false
 ;
 	de	0x00	;nvSysFlags
 ;
+	de	DefaultMaxSpeed:10	;nvServoMaxSpeed
+	de	DefaultAccel:10	;nvServoAccelValue
+	de	0x08:20	;nvMinTime 0x0808 = .2056 = 1028uS
+	de	0x0F:20	;nvMaxTime 0x0F0F = .3854 = 1927uS
+	de	DefaultSFlags:8	;nvServoFlags
+;
 	ORG	0xF0FF
 	de	0x00	;Skip BootLoader
 ;
@@ -349,6 +355,12 @@ HasISR	EQU	0x80	;used to enable interupts 0x80=true 0x00=false
 	nvRS232_SlaveAddr
 	nvssFlags
 	nvSysFlags
+;
+	nvServoMaxSpeed:10		;0=no Accel, 1..255 counts/20mS
+	nvServoAccelValue:10		;1..8 counts/20mS squared
+	nvMinTime:20		;Minimum pulse time (900uS=1800)
+	nvMaxTime:20		;Maximum pulse time (2100uS=4200)
+	nvServoFlags:8		;4 bits per servo
 ;
 	endc
 ;
