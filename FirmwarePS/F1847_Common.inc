@@ -274,10 +274,10 @@ EEWrite	MOVF	EEAddrTemp,W
 	movlw	0xAA
 	movwf	EECON2	;write AA
 	bsf	EECON1,WR
+	bsf	INTCON,GIE
 EEWriteLoop	btfsc	EECON1,WR	
 	bra	EEWriteLoop
 	bcf	EECON1,WREN
-	bsf	INTCON,GIE
 	MOVLB	0x00	;Bank 0
 	return
 ;
