@@ -31,6 +31,8 @@ kCmd_SetMin_uS	EQU	0x86	;+3 data (ServoNum,MinTime), return ACK
 kCmd_GetMin_uS	EQU	0x06
 kCmd_SetMax_uS	EQU	0x87	;+3 data (ServoNum,MaxTime), return ACK
 kCmd_GetMax_uS	EQU	0x07
+kCmd_SetSeqByte	EQU	0x88	;+2 data (Address, Data), return ACK
+kCmd_GetSeqByte	EQU	0x08
 ;
 ;
 kCmd_GetCurSpeed	EQU	0x91	;+1 Data (ServoNum) return ServoCurSpeed
@@ -43,6 +45,7 @@ kCmd_LoadSequencerData	EQU	0x97	;Load Sequencer from EEPROM, return ACK
 kCmd_GetStatus	EQU	0x98	;return ssStatus
 kCmd_ReBoot	EQU	0x99	;ReBoot the controller
 kCmd_RunBootloader	EQU	0x9A	;Set EEPROM (0xFF) = 0xFF and reboot
+kCmd_SequencerStart	EQU	0x9B	;Start/Restart Sequencer, return ACK
 ;
 ; these commands save params and return a 0,0,0,0 packet with the new address
 kCmd_SetMasterAddr	EQU	0xA1	;+1 data, return a zero packet
@@ -88,7 +91,7 @@ HandleRXData_1	movlb	0	;bank 0
                        goto                   Cmd_GetMaxSpeed
                        goto                   Cmd_GetMin_uS
                        goto                   Cmd_GetMax_uS
-                       return
+                       goto	Cmd_GetSeqByte
                        return		       ;9
                        return
                        return
@@ -112,7 +115,7 @@ Dispatcher_1           sublw                  0x80
                        goto                   Cmd_SetMaxSpeed
                        goto                   Cmd_SetMin_uS
                        goto                   Cmd_SetMax_uS
-                       return
+                       goto	Cmd_GetSeqByte
                        return
                        return
                        return
@@ -156,7 +159,7 @@ Dispatcher_4           movf                   Param78,W
                        goto                   Cmd_GetStatus
                        reset                                         ;Cmd_ReBoot
                        goto                   Cmd_RunBootloader
-                       return
+                       goto	Cmd_SequencerStart
                        return
                        return
                        return
@@ -357,6 +360,22 @@ Cmd_GetMax_uS	moviw	FSR1++
 	LOADFSR1	MaxTime,Param78
 	goto	Cmd_GetWord
 ;
+;---kCmd_SetSeqByte-----------------
+Cmd_SetSeqByte	moviw	FSR1++
+	andlw	0x7F	;00 .. 7F only
+	movwf	Param78	;Address
+	moviw	FSR1++
+	movwf	Param79	;Data
+	LOADFSR1	SequencerData,Param78
+	goto	Cmd_SetByte79
+;
+;---kCmd_GetSeqByte-----------------
+Cmd_GetSeqByte	moviw	FSR1++
+	andlw	0x7F	;00 .. 7F only
+	movwf	Param78	;Address
+	LOADFSR1	SequencerData,Param78
+	goto	Cmd_GetByte
+;
 ;---kCmd_GetCurSpeed----------------	+1 Data (ServoNum) return ServoCurSpeed
 Cmd_GetCurSpeed	moviw	FSR1++
 	andlw	0x0F	;0 .. 15 only
@@ -427,6 +446,11 @@ Cmd_RunBootloader	movlw	0xFF
 	movwf	EEDataTemp
 	mLongCall	EEWriteW	;Write EEPROM address in W
 	reset
+;
+;---kCmd_SequencerStart-----------
+Cmd_SequencerStart	movlb	5	;Bank 5
+	bsf	SequencerFlags,SeqActive	
+	goto	TX_ACK
 ;
 ;---kCmd_SetMasterAddr------------
 Cmd_SetMasterAddr	moviw	FSR1++

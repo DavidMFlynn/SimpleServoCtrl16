@@ -1,8 +1,8 @@
 ;====================================================================================================
 ;
 ;    Filename:      SimpleServo16PS.asm
-;    Date:          3/31/2021
-;    File Version:  1.0d1
+;    Date:          4/7/2021
+;    File Version:  1.0b1
 ;    
 ;    Author:        David M. Flynn
 ;    Company:       Oxford V.U.E., Inc.
@@ -18,16 +18,25 @@
 ;	3 Buttons/LEDs for config
 ;
 ;    History:
+;
+; 1.0b1   4/7/2021	Mode 0 is working. Making progress on Sequencer.
 ; 1.0d1   3/31/2021	Copied from Simple Servo 16 1.0d3
 ;
 ;====================================================================================================
 ; Options
-I2C_ADDRESS	EQU	0x34	; Slave address
 ;
 ;====================================================================================================
 ;====================================================================================================
 ; What happens next:
 ;   At power up the system LED will blink.
+;
+;  Mode 0
+;    Host control mode.
+;    Host may start the sequencer, it will run until a kSeqCmd_Stop or kSeqCmd_End command.
+;
+;  Mode 1
+;    Servo sequencer runs in a loop forever. 
+;    kSeqCmd_Stop is iqnored. kSeqCmd_End resets the pointer to 0.
 ;
 ;====================================================================================================
 ; PIC16F1847 on SimpleServo16 PCB Packet Serial Version
@@ -251,6 +260,17 @@ DebounceTime	EQU	d'10'
 ;
 ; all bits of ssStatus+1 are cleared by a host kCmd_GetStatus command.
 ;
+; ssStatus+2 is a copy of SequencerFlags
+;
+#Define	ssSeqActive	ssStatus+2,0	;Set/Cleared by Sequencer
+#Define	ssSeqWaitForTime	ssStatus+2,1	;Sequencer is waiting for timer
+#Define	ssSeqWaitForInPos	ssStatus+2,2	;Sequencer is waiting for a servo move to complete
+#Define	ssSeqOptionStop	ssStatus+2,3	;Sequencer is waiting
+#Define	ssSeqWaitForBtn2	ssStatus+2,4
+#Define	ssSeqWaitForBtn3	ssStatus+2,5
+;
+;
+;
 ;================================================================================================
 ;  Bank1 Ram 0A0h-0EFh 80 Bytes
 	cblock	0x0A0
@@ -343,7 +363,7 @@ HasISR	EQU	0x80	;used to enable interupts 0x80=true 0x00=false
 	de	0x0F:20	;nvMaxTime 0x0F0F = .3854 = 1927uS
 	de	DefaultSFlags:8	;nvServoFlags
 ;
-	de	0x00:80
+	de	0x00:kSeqMemSize
 ;
 	ORG	0xF0FF
 	de	0x00	;Skip BootLoader
@@ -364,7 +384,7 @@ HasISR	EQU	0x80	;used to enable interupts 0x80=true 0x00=false
 	nvMaxTime:20		;Maximum pulse time (2100uS=4200)
 	nvServoFlags:8		;4 bits per servo
 ;
-	nvSequencerData:80		;128 bytes of sequencer data
+	nvSequencerData:kSeqMemSize	;128 bytes of sequencer data
 	endc
 ;
 #Define	nvFirstParamByte	nvSysMode
