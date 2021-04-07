@@ -67,6 +67,7 @@ kServoDwellTime	EQU	d'5000'	;2.5mS/Channel
 	cblock	0x21E0	;beginning of bank 6
 ;  Bank6 Ram 320h-26Fh 80 Bytes
 	AccelRampLen:20
+	SequencerData:80
 	endc
 ;
 ;

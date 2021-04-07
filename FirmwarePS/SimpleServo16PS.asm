@@ -343,6 +343,8 @@ HasISR	EQU	0x80	;used to enable interupts 0x80=true 0x00=false
 	de	0x0F:20	;nvMaxTime 0x0F0F = .3854 = 1927uS
 	de	DefaultSFlags:8	;nvServoFlags
 ;
+	de	0x00:80
+;
 	ORG	0xF0FF
 	de	0x00	;Skip BootLoader
 ;
@@ -362,6 +364,7 @@ HasISR	EQU	0x80	;used to enable interupts 0x80=true 0x00=false
 	nvMaxTime:20		;Maximum pulse time (2100uS=4200)
 	nvServoFlags:8		;4 bits per servo
 ;
+	nvSequencerData:80		;128 bytes of sequencer data
 	endc
 ;
 #Define	nvFirstParamByte	nvSysMode

@@ -36,10 +36,10 @@ kCmd_GetMax_uS	EQU	0x07
 kCmd_GetCurSpeed	EQU	0x91	;+1 Data (ServoNum) return ServoCurSpeed
 kCmd_GetCurPos	EQU	0x92	;+1 Data (ServoNum) Return SigOutTime
 kCmd_GetInPosition	EQU	0x93	;+1 Data (ServoNum) Return InPositionFlag
-;
 kCmd_SaveParams	EQU	0x94	;Save all eeprom params, return ACK
 kCmd_RestoreParams	EQU	0x95	;Copy to ram, return ACK
-;
+kCmd_SaveSequencerData	EQU	0x96	;Save Sequencer data to EEPROM, return ACK
+kCmd_LoadSequencerData	EQU	0x97	;Load Sequencer from EEPROM, return ACK
 kCmd_GetStatus	EQU	0x98	;return ssStatus
 kCmd_ReBoot	EQU	0x99	;ReBoot the controller
 kCmd_RunBootloader	EQU	0x9A	;Set EEPROM (0xFF) = 0xFF and reboot
@@ -151,8 +151,8 @@ Dispatcher_4           movf                   Param78,W
                        goto	Cmd_GetInPosition
                        goto                   Cmd_SaveParams
                        goto                   Cmd_RestoreParams
-                       return                 
-                       return
+                       goto	Cmd_SaveSequencerData
+                       goto	Cmd_LoadSequencerData
                        goto                   Cmd_GetStatus
                        reset                                         ;Cmd_ReBoot
                        goto                   Cmd_RunBootloader
@@ -398,6 +398,13 @@ Cmd_RestoreParams	mLongCall	CopyToRam
 	mLongCall	EEPromToServoParams
 	goto	TX_ACK
 ;
+;---kCmd_SaveSequencerData----------	;Save Sequencer data to EEPROM, return ACK
+Cmd_SaveSequencerData	mLongCall	SequencerToEEProm
+	goto	TX_ACK
+;	
+;---kCmd_LoadSequencerData----------	;Load Sequencer from EEPROM, return ACK
+Cmd_LoadSequencerData	mLongCall	EEPromToSequencer
+	goto	TX_ACK
 ;
 ;---kCmd_GetStatus----------------
 Cmd_GetStatus	movf	ssStatus,W

@@ -1,22 +1,48 @@
-;====================================================================================================
+;=========================================================================================
 ;
 ;    Filename:      ServoLib.inc
-;    Date:          4/2/2021
-;    File Version:  1.0d1
+;    Date:          4/6/2021
+;    File Version:  1.0d3
 ;    
 ;    Author:        David M. Flynn
 ;    Company:       Oxford V.U.E., Inc.
 ;    E-Mail:        dflynn@oxfordvue.com
 ;    Web Site:      http://www.oxfordvue.com/
 ;
-;====================================================================================================
+;=========================================================================================
 ;  Low level routines for SimpleServo16 PCB
 ;
 ;    History:
 ;
+; 1.0d3   4/6/2021	Added EEPromToSequencer, SequencerToEEProm
+; 1.0d2   4/5/2021	Added EEPromToServoParams, ServoParamsToEEProm
 ; 1.0d1   4/2/2021	Copied from I2C Version
 ;
-;====================================================================================================
+;=========================================================================================
+; Sequencer Notes:
+;
+; Time values are UInt8 x 16, 0x01 = 16/100 seconds, .01 Second timebase,
+;   0xFF = 255*16/100 = 40.8 Seconds maximum time.
+;
+; Position values are UInt8 x 8 + 2048, 0x01 = 1*8+2048 = 2056, 0.5 uS timebase,
+;   0x00 = 2048, 0xFF = 255*8+2048 = 4088 = 0.002044 Seconds maximum pulse width.
+;
+; Command values:
+;  The high nibble is the command 0..F, low nibble is servo number or other data.
+;
+kSeqCmd_End	EQU	0x00
+kSeqCmd_Move	EQU	0x10	;+ServoNum, Dest
+kSeqCmd_SetSpeed	EQU	0x20	;+ServoNum, Speed
+kSeqCmd_SetAccel	EQU	0x30	;+ServoNum, Accel
+kSeqCmd_SetMin	EQU	0x40	;+ServoNum, MinL, MinH
+kSeqCmd_SetMax	EQU	0x50	;+ServoNum, MaxL, MaxH
+kSeqCmd_SetLoopTime	EQU	0x60	;+TimerL high nibble, TimerH
+;  load this value into master sequence timer, time counts down to zero, 0.01 second timebase
+kSeqCmd_WaitUntil	EQU	0x70	;+TimerL high nibble, TimerH
+;  wait here until master sequence timer is less than this value
+;
+;
+;=========================================================================================
 ; PIC16F1847 on SimpleServo16 PCB Packet Serial Version
 ;
 ;   Pin 1 (RA2/AN2) Address A2 (output)
@@ -49,15 +75,36 @@
 ; ISR's
 ;  ISR_ServoCCP1
 ;  ISR_ServoCCP2
-;
-; ServoInit16	Call once to init vars
-; StartServos	Call once to start servo system
-;
-; StartMotion	Call to move a servo,  W=Servo# 0..15, Param7D:Param7C = Dest
+;------------------
 ; IdleServos	Call from main loop
 ;
-; TestServoLib	Call from MainLoop to test, "this is only a test"
+; IdleServos_MovPlus
+; IdleServos_InPos
+; IdleServos_Accel
 ;
+; AccelDone
+; SaveSpeed
+; GetSpeed
+; GetMaxSpeed
+; GetAccelValue
+; SetFSR0ToServoFlags2
+; SetFSR0ToServoFlags
+;
+; StartServos	Call once to start servo system
+;
+; ServoInit16	Call once to init vars
+; EEPromToServoParams
+; EEPromToSequencer
+; ServoParamsToEEProm
+; SequencerToEEProm
+;
+; StartMotion	Call to move a servo,  W=Servo# 0..15, Param7D:Param7C = Dest
+;
+; oldCode TestServoLib	Call from MainLoop to test, "this is only a test"
+;
+; ClampInt(Param7D:Param7C,kMinPulseWidth,kMaxPulseWidth)
+; ClampMinMax(Param7D:Param7C,W = offset servo# * 2 (0,2,4..30)
+; 
 ;=========================================================================================
 ; Init Code:
 ;
@@ -656,7 +703,8 @@ ServoInit16	CLRW
 	MOVLW	HIGH kServoDwellTime
 	MOVWF	Param79
 	call	StoreWord16Times
-	bra	EEPromToServoParams
+	call	EEPromToServoParams
+	bra	EEPromToSequencer
 ;
 StoreWord16Times	MOVLW	.16
 	MOVWF	Param7A
@@ -716,6 +764,20 @@ ETSP_L1	CALL	EERead
 	RETURN
 ;
 ;===========================================================================
+; copy eeprom to ram
+;
+EEPromToSequencer	movlb	0	;Bank 0
+	MOVLW	nvSequencerData
+	MOVWF	EEAddrTemp
+	MOVLW	LOW SequencerData
+	MOVWF	FSR0L
+	MOVLW	HIGH SequencerData
+	MOVWF	FSR0H
+	movlw	0x80	;SequencerData
+	movwf	Param79
+	bra	ETSP_L1
+;
+;===========================================================================
 ; copy ram to eeprom
 ;
 ServoParamsToEEProm	movlb	0	;Bank 0
@@ -743,6 +805,20 @@ SPTE_L1	moviw	FSR0++
 	decfsz	Param79,F
 	BRA	SPTE_L1
 	RETURN
+;
+;===========================================================================
+; copy ram to eeprom
+;
+SequencerToEEProm	movlb	0	;Bank 0
+	MOVLW	nvSequencerData
+	MOVWF	EEAddrTemp
+	MOVLW	LOW SequencerData
+	MOVWF	FSR0L
+	MOVLW	HIGH SequencerData
+	MOVWF	FSR0H
+	movlw	0x80	;SequencerData
+	movwf	Param79
+	bra	SPTE_L1
 ;
 ;=========================================================================================
 ; Entry: W=Servo# 0..15, Param7D:Param7C = Dest
