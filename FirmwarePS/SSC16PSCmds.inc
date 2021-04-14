@@ -115,7 +115,7 @@ Dispatcher_1           sublw                  0x80
                        goto                   Cmd_SetMaxSpeed
                        goto                   Cmd_SetMin_uS
                        goto                   Cmd_SetMax_uS
-                       goto	Cmd_GetSeqByte
+                       goto	Cmd_SetSeqByte
                        return
                        return
                        return

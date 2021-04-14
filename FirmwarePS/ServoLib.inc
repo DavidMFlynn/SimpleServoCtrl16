@@ -321,6 +321,9 @@ IRQ_Servo2_End	RETURN
 ; Call from main loop
 ;
 IdleServos	MOVLB	0x05	; bank 5
+	BTFSC	SequencerFlags,SeqActive
+	call	DoSequenceCmd
+;
 	CALL	SetFSR0ToServoFlags
 	BTFSC	CMDServoIDX,3
 	GOTO	IdleServos8_15
@@ -798,7 +801,7 @@ SequencerToEEProm	movlb	0	;Bank 0
 ;
 ;=========================================================================================
 ; Entry: W=Servo# 0..15, Param7D:Param7C = Dest
-; Exit: W=unchanged
+; Exit: W=changed
 ; Ram used: Param78, Param7C, Param7D FSR0
 ; Calls: none
 ;
@@ -844,6 +847,179 @@ StartMotion	ANDLW	0x0F
 	MOVWI	FSR0++
 	MOVWI	FSR0++
 	RETURN
+;
+;=========================================================================================
+; Servo Sequencer
+;
+; Entry: none
+;
+DoSequenceCmd	movlb	5	;Bank 5
+	movlw	kSeqMemSize
+	subwf	SequencerPtr,W	;W=SequencerPtr-kSeqMemSize
+	SKPB		;SequencerPtr<kSeqMemSize?
+	bra	DoSeqDone	; No, Sequencer is past end
+;
+; Handle Wait states now
+;SeqWaitForTimer
+;SeqWaitForInPos
+;SeqWaitForBtn2
+;SeqWaitForBtn3
+;
+;
+	movf	SequencerPtr,W
+	LOADFSR0W	SequencerData
+	incf	SequencerPtr,F
+	moviw	FSR0++
+	movwf	Param78
+	swapf	Param78,W
+	andlw	0x0F
+	brw
+	goto	DoSeqDone	;kSeqCmd_End 
+	goto	DoSeqMoveCmd	;kSeqCmd_Move +ServoNum, Dest
+	goto	DoSeqSetSpeedCmd	;kSeqCmd_SetSpeed +ServoNum, Speed
+	goto	DoSeqSetAccelCmd	;kSeqCmd_SetAccel +ServoNum, Accel
+	goto	DoSeqSetMinCmd	;kSeqCmd_SetMin +ServoNum, MinL, MinH
+	goto	DoSeqSetMaxCmd	;kSeqCmd_SetMax +ServoNum, MaxL, MaxH
+	goto	DoSeqSetLoopTimeCmd	;kSeqCmd_SetLoopTime +TimerL high nibble, TimerH
+;  load this value into master sequence timer, time counts down to zero, 0.01 second timebase
+	goto	DoSeqWaitUntilCmd	;kSeqCmd_WaitUntil +TimerL high nibble, TimerH
+;  wait here until master sequence timer is less than this value
+	goto	DoSeqMov2MinCmd	;kSeqCmd_Mov2Min +ServoNum
+	goto	DoSeqMov2MaxCmd	;kSeqCmd_Mov2Max +ServoNum
+	goto	DoSeqMov2CtrCmd	;kSeqCmd_Mov2Ctr +ServoNum
+	goto	DoSeqWaitInPosCmd	;kSeqCmd_WaitInPos +ServoNum
+	goto	DoSeqStopCmd	;kSeqCmd_Stop +Flags? Mode=0 only
+	goto	DoSeqWaitForBtnCmd	;kSeqCmd_WaitForBtn +Btn#, 2 or 3 only
+	goto	SeqReturn	;E not used
+	goto	SeqReturn	;F not used
+;
+DoSeqDone	clrf	SequencerPtr
+; if mode=0 then stop sequencer
+	movlb	0	;Bank 0
+	movf	SysMode,F
+	SKPZ
+	return		;Mode <> 0
+	movlb	5	;Bank 5
+	bcf	SequencerFlags,SeqActive
+SeqReturn	movlb	0	;Bank 0
+	return
+;
+DoSeqMoveCmd	moviw	FSR0++
+	incf	SequencerPtr,F
+; Position values are UInt8 x 8 + 2048, 0x01 = 1*8+2048 = 2056, 0.5 uS timebase,
+;   0x00 = 2048, 0xFF = 255*8+2048 = 4088 = 0.002044 Seconds maximum pulse width.
+	movwf	Param7C
+	clrf	Param7D
+	lslf	Param7C,F
+	rlf	Param7D,F	
+	lslf	Param7C,F
+	rlf	Param7D,F	
+	lslf	Param7C,F
+	rlf	Param7D,F
+	bsf	Param7D,3
+;
+DoSeqMov2	movf	Param78,W
+	andlw	0x0F
+	call	StartMotion
+	bra	SeqReturn
+;
+DoSeqSetSpeedCmd	movf	Param78,W
+	andlw	0x0F
+	LOADFSR1W	ServoMaxSpeed
+DoSeqCpByte	moviw	FSR0++
+	movwi	FSR1++
+	incf	SequencerPtr,F
+	goto	SeqReturn
+;
+DoSeqSetAccelCmd	movf	Param78,W
+	andlw	0x0F
+	LOADFSR1W	ServoAccelValue
+	bra	DoSeqCpByte
+;
+DoSeqSetMinCmd	lslf	Param78,W
+	andlw	0x1E
+	LOADFSR1W	MinTime
+DoSeqCpWord	moviw	FSR0++
+	movwi	FSR1++
+	incf	SequencerPtr,F
+	bra	DoSeqCpByte
+;
+DoSeqSetMaxCmd	lslf	Param78,W
+	andlw	0x1E
+	LOADFSR1W	MaxTime
+	bra	DoSeqCpWord
+;
+DoSeqSetLoopTimeCmd	swapf	Param78,W
+	andlw	0xF0
+	movwf	Param7A	;MSB of Wait time
+	moviw	FSR0++
+	incf	SequencerPtr,F
+	movlb	0	;Bank 0
+	movwf	Param78
+	swapf	Param78,W
+	andlw	0x0F
+	iorwf	Param7A,F	;low nibble of MSB
+	swapf	Param78,W
+	andlw	0xF0
+	movwf	Timer2Lo
+	movf	Param7A,W
+	movwf	Timer2Hi
+	return
+;
+DoSeqWaitUntilCmd	bsf	SequencerFlags,SeqWaitForTimer
+	swapf	Param78,W
+	andlw	0xF0
+	movwf	SequencerTime	;MSB of Wait time
+	moviw	FSR0++
+	incf	SequencerPtr,F
+	movwf	Param78
+	swapf	Param78,W
+	andlw	0x0F
+	iorwf	SequencerTime,F
+	swapf	Param78,W
+	andlw	0xF0
+	movwf	SequencerServoNum	;for Wait..., LSB ot Time
+	bra	SeqReturn
+;
+DoSeqMov2MinCmd	lslf	Param78,W
+	andlw	0x1E
+	LOADFSR0W	MinTime
+SeqMov2FSR0	moviw	FSR0++
+	movwf	Param7C
+	moviw	FSR0++
+	movwf	Param7D
+	bra	DoSeqMov2
+;
+DoSeqMov2MaxCmd	lslf	Param78,W
+	andlw	0x1E
+	LOADFSR0W	MaxTime
+	bra	SeqMov2FSR0
+;
+DoSeqMov2CtrCmd	movlw	LOW kCenterPulseWidth
+	movwf	Param7C
+	movlw	HIGH kCenterPulseWidth
+	movwf	Param7D
+	bra	DoSeqMov2
+;
+DoSeqWaitInPosCmd	movf	Param78,W
+	andlw	0x0F
+	movwf	SequencerServoNum
+	bsf	SequencerFlags,SeqWaitForInPos
+	bra	SeqReturn
+;
+DoSeqStopCmd	movlb	0	;Bank 0
+	movf	SysMode,F
+	SKPZ
+	return
+	movlb	5	;Bank 5
+	bcf	SequencerFlags,SeqActive
+	bra	SeqReturn
+;
+DoSeqWaitForBtnCmd	btfsc	Param78,0
+	bsf	SequencerFlags,SeqWaitForBtn2
+	btfsc	Param78,1
+	bsf	SequencerFlags,SeqWaitForBtn3
+	bra	SeqReturn
 ;
 	if oldCode
 ;=========================================================================================

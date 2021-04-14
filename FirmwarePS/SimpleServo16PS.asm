@@ -218,7 +218,7 @@ DebounceTime	EQU	d'10'
 	Timer1Lo		;1st 16 bit timer
 	Timer1Hi		; one second RX timeiout
 	Timer2Lo		;2nd 16 bit timer
-	Timer2Hi		;
+	Timer2Hi		; Servo Sequencer Timer
 	Timer3Lo		;3rd 16 bit timer
 	Timer3Hi		;GP wait timer
 	Timer4Lo		;4th 16 bit timer

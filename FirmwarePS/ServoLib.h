@@ -46,8 +46,8 @@ kSeqCmd_Mov2Min	EQU	0x80	;+ServoNum
 kSeqCmd_Mov2Max	EQU	0x90	;+ServoNum
 kSeqCmd_Mov2Ctr	EQU	0xA0	;+ServoNum
 kSeqCmd_WaitInPos	EQU	0xB0	;+ServoNum
-kSeqCmd_Stop	EQU	0xC0	;+Flags?
-kSeqCmd_WaitForBtn	EQU	0xD0	;+Btn#, 2 or 3 only
+kSeqCmd_Stop	EQU	0xC0	;+Flags?  Mode=0 only
+kSeqCmd_WaitForBtn	EQU	0xD0	;+Btn#, 2 or 3 only, 1=Btn 2, 2=Btn 3, 3=both
 ;
 ;
 ;====================================================================================================
@@ -96,7 +96,9 @@ kServoDwellTime	EQU	d'5000'	;2.5mS/Channel
 	CalcdDwellH
 	SequencerFlags
 	SequencerPtr		;Offset into SequencerData
-; there are 9 bytes left in bank 5
+	SequencerServoNum		;for Wait..., LSB of Wait time
+	SequencerTime		;MSB of Wait time
+; there are 7 bytes left in bank 5
 	endc
 ;
 	cblock	0x21E0	;beginning of bank 6
