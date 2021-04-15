@@ -127,7 +127,7 @@ SimpleServo16PS.asm                                                   Page: 1
 00112 0000 0001 	kRS232_MasterAddr	EQU	0x01	;Master's Address
 00113 0000 0002 	kRS232_SlaveAddr	EQU	0x02	;This Slave's Address
 00114 0000 0000 	kSysMode	EQU	.0	;Default Mode
-00115 0000 0000 	kMaxMode	EQU	.0	;Last mode
+00115 0000 0001 	kMaxMode	EQU	.1	;Last mode
 00116 0000 0000 	kssFlags	EQU	.0
 00117 0000 	;
 00118 0000 0003 	#Define	_C	STATUS,C
@@ -377,101 +377,111 @@ SimpleServo16PS.asm                                                   Page: 1
 00049 0000 00C0 	kSeqCmd_Stop	EQU	0xC0	;+Flags?  Mode=0 only
 00050 0000 00D0 	kSeqCmd_WaitForBtn	EQU	0xD0	;+Btn#, 2 or 3 only, 1=Btn 2, 2=Btn 3, 3=both
 00051 0000 	;
-00052 0000 	;
-00053 0000 	;====================================================================================================
-00054 0000 	;====================================================================================================
-00055 0000 	; Constants:
-00056 0000 	;
-00057 0000 0030 	DefaultMaxSpeed	EQU	0x30	;1uS/20mS^2
-00058 0000 0001 	DefaultAccel	EQU	0x01
-00059 0000 0022 	DefaultSFlags	EQU	b'00100010'	;In Position
+00052 0000 	; Sample Sequence
+00053 0000 	;	de	kSeqCmd_Mov2Min	;Servo 0 to min
+00054 0000 	;	de	kSeqCmd_WaitInPos	;wait for servo 0 to finish
+00055 0000 	;	de	kSeqCmd_Mov2Max+1	;Servo 1 to max
+00056 0000 	;	de	kSeqCmd_WaitInPos+1	;wait for servo 1 to finish
+00057 0000 	;	de	kSeqCmd_Mov2Max	;Servo 0 to max
+00058 0000 	;	de	kSeqCmd_WaitInPos	;wait for servo 0 to finish
+00059 0000 	;	de	kSeqCmd_Mov2Min+1	;Servo 1 to min
 00060 0000 	;
-00061 0000 0009 	CCPCON_Clr	EQU	b'00001001'	;Clear output on match
-00062 0000 0008 	CCPCON_Set	EQU	b'00001000'	;Set output on match
-00063 0000 000A 	CCPCON_Int	EQU	b'00001010'	;Interupt only on match
-00064 0000 	;
-00065 0000 0BB8 	kCenterPulseWidth	EQU	d'3000'	;1500uS
-00066 0000 0708 	kMinPulseWidth	EQU	d'1800'	;900uS
-00067 0000 1068 	kMaxPulseWidth	EQU	d'4200'	;2100uS
-00068 0000 1194 	kServoDwellTimeA	EQU	d'4500'	;Address Change time 2250uS
-00069 0000 01F4 	kServoAddrTime	EQU	d'500'	;250uS
-00070 0000 1388 	kServoDwellTime	EQU	d'5000'	;2.5mS/Channel
-00071 0000 	;
-00072 0000 	;================================================================================================
-00073 0000 	; Linear data memory 0x2000 .. 0x29AF access using FSR
-00074 0000 		cblock	0x20F0	;beginning of bank 3
-00075 0000 	;  Bank3 Ram 1A0h-1EFh 80 Bytes
-00076 0000 20F0 		ServoMaxSpeed:10		;0=no Accel, 1..255 counts/20mS
-00077 0000 2100 		ServoAccelValue:10		;1..8 counts/20mS squared
-00078 0000 2110 		ServoCurSpeed:10		;0=Stopped, MSb=Direction, 1..127
-00079 0000 2120 		CMDSigTime:20		;Commanded position MinTime .. MaxTime
-00080 0000 	; bank4 Ram 220h-26Fh 80 Bytes
+00061 0000 	;	de	kSeqCmd_End
+00062 0000 	;
+00063 0000 	;====================================================================================================
+00064 0000 	;====================================================================================================
+00065 0000 	; Constants:
+00066 0000 	;
+00067 0000 0030 	DefaultMaxSpeed	EQU	0x30	;1uS/20mS^2
+00068 0000 0001 	DefaultAccel	EQU	0x01
+00069 0000 0022 	DefaultSFlags	EQU	b'00100010'	;In Position
+00070 0000 	;
+00071 0000 0009 	CCPCON_Clr	EQU	b'00001001'	;Clear output on match
+00072 0000 0008 	CCPCON_Set	EQU	b'00001000'	;Set output on match
+00073 0000 000A 	CCPCON_Int	EQU	b'00001010'	;Interupt only on match
+00074 0000 	;
+00075 0000 0BB8 	kCenterPulseWidth	EQU	d'3000'	;1500uS
+00076 0000 0708 	kMinPulseWidth	EQU	d'1800'	;900uS
+00077 0000 1068 	kMaxPulseWidth	EQU	d'4200'	;2100uS
+00078 0000 1194 	kServoDwellTimeA	EQU	d'4500'	;Address Change time 2250uS
+00079 0000 01F4 	kServoAddrTime	EQU	d'500'	;250uS
+00080 0000 1388 	kServoDwellTime	EQU	d'5000'	;2.5mS/Channel
 SimpleServo16PS.asm                                                   Page: 5
 /Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
 
-00081 0000 2140 		MinTime:20		;Minimum pulse time (900uS=1800)
-00082 0000 2160 		MaxTime:20		;Maximum pulse time (2100uS=4200)
-00083 0000 2180 		ServoFlags:8		;4 bits per servo
-00084 0000 2188 		ServoFlags2:8		;4 bits per servo
-00085 0000 	; bank 5 Ram 2A0h-2EFh 80 Bytes
-00086 0000 2190 		SigOutTime:20		;Current position
-00087 0000 21B0 		DwellTime:20
-00088 0000 		endc
-00089 0000 	;
-00090 0000 		cblock	0x2E0	;locate after DwellTime
-00091 0000 	; these are in bank 5 because the CCP1 and CCP2 CONs are here, accessed w/o FSR
-00092 0000 02E0 		CMDServoIDX
-00093 0000 02E1 		ServoIDX		;Index 0..7
-00094 0000 02E2 		ServoCtlFlags	
-00095 0000 02E3 		CalcdDwell		;scratch var
-00096 0000 02E4 		CalcdDwellH
-00097 0000 02E5 		SequencerFlags
-00098 0000 02E6 		SequencerPtr		;Offset into SequencerData
-00099 0000 02E7 		SequencerServoNum		;for Wait..., LSB of Wait time
-00100 0000 02E8 		SequencerTime		;MSB of Wait time
-00101 0000 	; there are 7 bytes left in bank 5
-00102 0000 		endc
-00103 0000 	;
-00104 0000 		cblock	0x21E0	;beginning of bank 6
-00105 0000 	;  Bank6 Ram 320h-26Fh 80 Bytes
-00106 0000 21E0 		AccelRampLen:20
-00107 0000 2200 		SequencerData:kSeqMemSize
-00108 0000 		endc
-00109 0000 	;
-00110 0000 	;
-00111 0000 	;================================================================================================
-00112 0000 	;
+00081 0000 	;
+00082 0000 	;================================================================================================
+00083 0000 	; Linear data memory 0x2000 .. 0x29AF access using FSR
+00084 0000 		cblock	0x20F0	;beginning of bank 3
+00085 0000 	;  Bank3 Ram 1A0h-1EFh 80 Bytes
+00086 0000 20F0 		ServoMaxSpeed:10		;0=no Accel, 1..255 counts/20mS
+00087 0000 2100 		ServoAccelValue:10		;1..8 counts/20mS squared
+00088 0000 2110 		ServoCurSpeed:10		;0=Stopped, MSb=Direction, 1..127
+00089 0000 2120 		CMDSigTime:20		;Commanded position MinTime .. MaxTime
+00090 0000 	; bank4 Ram 220h-26Fh 80 Bytes
+00091 0000 2140 		MinTime:20		;Minimum pulse time (900uS=1800)
+00092 0000 2160 		MaxTime:20		;Maximum pulse time (2100uS=4200)
+00093 0000 2180 		ServoFlags:8		;4 bits per servo
+00094 0000 2188 		ServoFlags2:8		;4 bits per servo
+00095 0000 	; bank 5 Ram 2A0h-2EFh 80 Bytes
+00096 0000 2190 		SigOutTime:20		;Current position
+00097 0000 21B0 		DwellTime:20
+00098 0000 		endc
+00099 0000 	;
+00100 0000 		cblock	0x2E0	;locate after DwellTime
+00101 0000 	; these are in bank 5 because the CCP1 and CCP2 CONs are here, accessed w/o FSR
+00102 0000 02E0 		CMDServoIDX
+00103 0000 02E1 		ServoIDX		;Index 0..7
+00104 0000 02E2 		ServoCtlFlags	
+00105 0000 02E3 		CalcdDwell		;scratch var
+00106 0000 02E4 		CalcdDwellH
+00107 0000 02E5 		SequencerFlags
+00108 0000 02E6 		SequencerPtr		;Offset into SequencerData
+00109 0000 02E7 		SequencerServoNum		;for Wait..., LSB of Wait time
+00110 0000 02E8 		SequencerTime		;MSB of Wait time
+00111 0000 	; there are 7 bytes left in bank 5
+00112 0000 		endc
 00113 0000 	;
-00114 0000 	; ServoCtlFlags Flag bits, ToDo at Next ISR:
-00115 0000 0000 	CyclePulseStart	EQU	0	;Start cycle banks 1 and 2
-00116 0000 0002 	CyclePulseEnd1	EQU	2	;End pulse, begin dwell
-00117 0000 0003 	CyclePulseEnd2	EQU	3	; Set when a pulse is started.
-00118 0000 0004 	AddrChngDwell	EQU	4	;dwell 100uS , change address
+00114 0000 		cblock	0x21E0	;beginning of bank 6
+00115 0000 	;  Bank6 Ram 320h-26Fh 80 Bytes
+00116 0000 21E0 		AccelRampLen:20
+00117 0000 2200 		SequencerData:kSeqMemSize
+00118 0000 		endc
 00119 0000 	;
-00120 0000 	; ServoFlags Flag bits
-00121 0000 0000 	ValueSentFlag0_7	EQU	0
-00122 0000 0001 	InPositionFlag0_7	EQU	1
-00123 0000 0002 	ServoOnBit0_7	EQU	2
-00124 0000 0003 	MovingFWD0_7	EQU	3
-00125 0000 0004 	ValueSentFlag8_15	EQU	4
-00126 0000 0005 	InPositionFlag8_15	EQU	5
-00127 0000 0006 	ServoOnBit8_15	EQU	6
-00128 0000 0007 	MovingFWD8_15	EQU	7
+00120 0000 	;
+00121 0000 	;================================================================================================
+00122 0000 	;
+00123 0000 	;
+00124 0000 	; ServoCtlFlags Flag bits, ToDo at Next ISR:
+00125 0000 0000 	CyclePulseStart	EQU	0	;Start cycle banks 1 and 2
+00126 0000 0002 	CyclePulseEnd1	EQU	2	;End pulse, begin dwell
+00127 0000 0003 	CyclePulseEnd2	EQU	3	; Set when a pulse is started.
+00128 0000 0004 	AddrChngDwell	EQU	4	;dwell 100uS , change address
 00129 0000 	;
-00130 0000 	; ServoFlags2 Flag bits
-00131 0000 0000 	AccelComplete0_7	EQU	0
-00132 0000 0004 	AccelComplete8_15	EQU	4
-00133 0000 	;
-00134 0000 	; SequencerFlags Flag bits
-00135 0000 0000 	SeqActive	EQU	0
-00136 0000 0001 	SeqWaitForTimer	EQU	1
-00137 0000 0002 	SeqWaitForInPos	EQU	2
-00138 0000 0003 	SeqOptionStop	EQU	3
-00139 0000 0004 	SeqWaitForBtn2	EQU	4
-00140 0000 0005 	SeqWaitForBtn3	EQU	5
-00141 0000 	;
-00142 0000 	;=========================================================================================
+00130 0000 	; ServoFlags Flag bits
+00131 0000 0000 	ValueSentFlag0_7	EQU	0
+00132 0000 0001 	InPositionFlag0_7	EQU	1
+00133 0000 0002 	ServoOnBit0_7	EQU	2
+00134 0000 0003 	MovingFWD0_7	EQU	3
+00135 0000 0004 	ValueSentFlag8_15	EQU	4
+00136 0000 0005 	InPositionFlag8_15	EQU	5
+00137 0000 0006 	ServoOnBit8_15	EQU	6
+00138 0000 0007 	MovingFWD8_15	EQU	7
+00139 0000 	;
+00140 0000 	; ServoFlags2 Flag bits
+00141 0000 0000 	AccelComplete0_7	EQU	0
+00142 0000 0004 	AccelComplete8_15	EQU	4
 00143 0000 	;
+00144 0000 	; SequencerFlags Flag bits
+00145 0000 0000 	SeqActive	EQU	0
+00146 0000 0001 	SeqWaitForTimer	EQU	1
+00147 0000 0002 	SeqWaitForInPos	EQU	2
+00148 0000 0003 	SeqOptionStop	EQU	3
+00149 0000 0004 	SeqWaitForBtn2	EQU	4
+00150 0000 0005 	SeqWaitForBtn3	EQU	5
+00151 0000 	;
+00152 0000 	;=========================================================================================
+00153 0000 	;
 00310 0000 	;
 00311 0000 	;=======================================================================================================
 00312 0000 	;  Common Ram 70-7F same for all banks
@@ -498,6 +508,9 @@ SimpleServo16PS.asm                                                   Page: 1
 00333 0000 		endc
 00334 0000 	;
 00335 0000 	;
+SimpleServo16PS.asm                                                   Page: 6
+/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
+
 00336 0000 	;=========================================================================================
 00337 0000 	;Conditions
 00338 0000 0080 	HasISR	EQU	0x80	;used to enable interupts 0x80=true 0x00=false
@@ -508,9 +521,6 @@ SimpleServo16PS.asm                                                   Page: 1
 00343 0000 		__idlocs	0x10d1
 00344 0000 	;
 00345 0000 	;==============================================================================================
-SimpleServo16PS.asm                                                   Page: 6
-/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
-
 00346 0000 	; EEPROM locations (NV-RAM) 0x00..0x7F (offsets)
 00347 0000 	;
 00348 0000 	; default values
@@ -531,142 +541,150 @@ SimpleServo16PS.asm                                                   Page: 1
 00363 F045 000F 000F 000F 000F 000F 000F 000F 000F 000F 000F 000F 000F 000F 000F 000F 000F 000F 000F 000F 000F 000F 000F 000F 000F 000F 000F 000F 000F 000F 000F 000F 000F 		de	0x0F:20	;nvMaxTime 0x0F0F = .3854 = 1927uS
 00364 F065 0022 0022 0022 0022 0022 0022 0022 0022 		de	DefaultSFlags:8	;nvServoFlags
 00365 F06D 	;
-00366 F06D 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 		de	0x00:kSeqMemSize
-00367 F0ED 	;
-00368 F0ED 		ORG	0xF0FF
-00369 F0FF 0000 		de	0x00	;Skip BootLoader
-00370 F100 	;
-00371 F100 	; EEPROM locations (NV-RAM) 0x00..0x7F (offsets)
-00372 F100 	;
-00373 F100 		cblock	0x0000
-00374 F100 	;
-00375 F100 0000 		nvSysMode
-00376 F100 0001 		nvRS232_MasterAddr
-00377 F100 0002 		nvRS232_SlaveAddr
-00378 F100 0003 		nvssFlags
-00379 F100 0004 		nvSysFlags
+00366 F06D 0080 		de	kSeqCmd_Mov2Min	;Servo 0 to min
+00367 F06E 00B0 		de	kSeqCmd_WaitInPos	;wait for servo 0 to finish
+00368 F06F 0091 		de	kSeqCmd_Mov2Max+1	;Servo 1 to max
+00369 F070 00B1 		de	kSeqCmd_WaitInPos+1	;wait for servo 1 to finish
+00370 F071 0090 		de	kSeqCmd_Mov2Max	;Servo 0 to max
+00371 F072 00B0 		de	kSeqCmd_WaitInPos	;wait for servo 0 to finish
+00372 F073 0081 		de	kSeqCmd_Mov2Min+1	;Servo 1 to min
+00373 F074 	;
+00374 F074 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 		de	0x00:kSeqMemSize-7
+00375 F0ED 	;
+00376 F0ED 		ORG	0xF0FF
+00377 F0FF 0000 		de	0x00	;Skip BootLoader
+00378 F100 	;
+00379 F100 	; EEPROM locations (NV-RAM) 0x00..0x7F (offsets)
 00380 F100 	;
-00381 F100 0005 		nvServoMaxSpeed:10		;0=no Accel, 1..255 counts/20mS
-00382 F100 0015 		nvServoAccelValue:10		;1..8 counts/20mS squared
-00383 F100 0025 		nvMinTime:20		;Minimum pulse time (900uS=1800)
-00384 F100 0045 		nvMaxTime:20		;Maximum pulse time (2100uS=4200)
-00385 F100 0065 		nvServoFlags:8		;4 bits per servo
-00386 F100 	;
-00387 F100 006D 		nvSequencerData:kSeqMemSize	;128 bytes of sequencer data
-00388 F100 		endc
-00389 F100 	;
-00390 F100 0000 	#Define	nvFirstParamByte	nvSysMode
-00391 F100 0004 	#Define	nvLastParamByte	nvSysFlags
-00392 F100 	;
-00393 F100 	;
-00394 F100 	;==============================================================================================
-00395 F100 	;============================================================================================
-00396 F100 	;
-00397 F100 1E00 	BootLoaderStart	EQU	0x1E00
-00398 F100 	;
-00399 F100 		ORG	0x000	; processor reset vector
-00400 0000 319E 		movlp	BootLoaderStart
-00401 0001 2E00 		goto	BootLoaderStart
-00402 0002 	;
-00403 0002 018A 	ProgStartVector	CLRF	PCLATH
-00404 0003 29BE 	  	goto	start	; go to beginning of program
-00405 0004 	;
-00406 0004 	;===============================================================================================
-00407 0004 	; Interupt Service Routine
-00408 0004 	;
-00409 0004 	; we loop through the interupt service routing every 0.008192 seconds
-00410 0004 	;
-00411 0004 	;
-00412 0004 		ORG	0x004	; interrupt vector location
-00413 0004 0188 		CLRF	BSR	; bank0
-00414 0005 018A 		clrf	PCLATH
-00415 0006 	;
-00416 0006 	; Timer 2
-00417 0006 1C91 		BTFSS	PIR1,TMR2IF
-00418 0007 2826 		goto	SystemTick_end
-00419 0008 	;
-00420 0008 1091 		BCF	PIR1,TMR2IF	; reset interupt flag bit
-00421 0009 	;------------------
-00422 0009 	; These routines run 100 times per second
-00423 0009 	;------------------
-00424 0009 	;Decrement timers until they are zero
-00425 0009 	; 
-00426 0009 2070 		call	DecTimer1	;if timer 1 is not zero decrement
-00427 000A 206E 		call	DecTimer2
-00428 000B 206C 		call	DecTimer3
-00429 000C 206A 		call	DecTimer4
-00430 000D 	;
-00431 000D 	;-----------------------------------------------------------------
-00432 000D 	; blink LEDs
-00433 000D 308D 		MOVLW	LOW TRISB
-00434 000E 0084 		MOVWF	FSR0L
-00435 000F 3000 		MOVLW	HIGH TRISB
-00436 0010 0085 		MOVWF	FSR0H
-00437 0011 	; All LEDs off
-00438 0011 1400 		BSF	INDF0,LED1_Bit
-00439 0012 1600 		BSF	INDF0,LED2_Bit
-00440 0013 1680 		BSF	INDF0,LED3_Bit
-00441 0014 	;
-00442 0014 	; Read SW's
-00443 0014 103B 		BCF	SW1_Flag
-00444 0015 10BB 		BCF	SW2_Flag
+00381 F100 		cblock	0x0000
+00382 F100 	;
+00383 F100 0000 		nvSysMode
+00384 F100 0001 		nvRS232_MasterAddr
+00385 F100 0002 		nvRS232_SlaveAddr
+00386 F100 0003 		nvssFlags
+00387 F100 0004 		nvSysFlags
+00388 F100 	;
+00389 F100 0005 		nvServoMaxSpeed:10		;0=no Accel, 1..255 counts/20mS
+00390 F100 0015 		nvServoAccelValue:10		;1..8 counts/20mS squared
+00391 F100 0025 		nvMinTime:20		;Minimum pulse time (900uS=1800)
+00392 F100 0045 		nvMaxTime:20		;Maximum pulse time (2100uS=4200)
+00393 F100 0065 		nvServoFlags:8		;4 bits per servo
+00394 F100 	;
+00395 F100 006D 		nvSequencerData:kSeqMemSize	;128 bytes of sequencer data
+00396 F100 		endc
+00397 F100 	;
+00398 F100 0000 	#Define	nvFirstParamByte	nvSysMode
+00399 F100 0004 	#Define	nvLastParamByte	nvSysFlags
+00400 F100 	;
+00401 F100 	;
+00402 F100 	;==============================================================================================
+00403 F100 	;============================================================================================
+00404 F100 	;
+00405 F100 1E00 	BootLoaderStart	EQU	0x1E00
+00406 F100 	;
+00407 F100 		ORG	0x000	; processor reset vector
+00408 0000 319E 		movlp	BootLoaderStart
+00409 0001 2E00 		goto	BootLoaderStart
+00410 0002 	;
+00411 0002 018A 	ProgStartVector	CLRF	PCLATH
+00412 0003 29BE 	  	goto	start	; go to beginning of program
+00413 0004 	;
+00414 0004 	;===============================================================================================
+00415 0004 	; Interupt Service Routine
+00416 0004 	;
+00417 0004 	; we loop through the interupt service routing every 0.008192 seconds
+00418 0004 	;
+00419 0004 	;
+00420 0004 		ORG	0x004	; interrupt vector location
+00421 0004 0188 		CLRF	BSR	; bank0
+00422 0005 018A 		clrf	PCLATH
+00423 0006 	;
+00424 0006 	; Timer 2
+00425 0006 1C91 		BTFSS	PIR1,TMR2IF
+00426 0007 2826 		goto	SystemTick_end
+00427 0008 	;
+00428 0008 1091 		BCF	PIR1,TMR2IF	; reset interupt flag bit
+00429 0009 	;------------------
+00430 0009 	; These routines run 100 times per second
+00431 0009 	;------------------
+00432 0009 	;Decrement timers until they are zero
+00433 0009 	; 
+00434 0009 2070 		call	DecTimer1	;if timer 1 is not zero decrement
 SimpleServo16PS.asm                                                   Page: 7
 /Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
 
-00445 0016 113B 		BCF	SW3_Flag
-00446 0017 1C0D 		BTFSS	SW1_In
-00447 0018 143B 		BSF	SW1_Flag
-00448 0019 1E0D 		BTFSS	SW2_In
-00449 001A 14BB 		BSF	SW2_Flag
-00450 001B 1E8D 		BTFSS	SW3_In
-00451 001C 153B 		BSF	SW3_Flag
-00452 001D 	; Dec LED time
-00453 001D 0BA3 		DECFSZ	SysLED_Count,F	;Is it time?
-00454 001E 3207 		bra	TMR2_Done	; No, not yet
-00455 001F 	;
-00456 001F 0820 		MOVF	SysLED_Time,W
-00457 0020 00A3 		MOVWF	SysLED_Count
-00458 0021 	; Flash LEDs
-00459 0021 1000 		BCF	INDF0,LED1_Bit	;Sys LED ON
-00460 0022 19BB 		BTFSC	LED2_Flag
-00461 0023 1200 		BCF	INDF0,LED2_Bit	;LED 2 ON
-00462 0024 1A3B 		BTFSC	LED3_Flag
-00463 0025 1280 		BCF	INDF0,LED3_Bit	;LED 3 ON
-00464 0026 	;
-00465 0026 	;
-00466 0026 	TMR2_Done:
-00467 0026 	SystemTick_end:	
-00468 0026 	;
-00469 0026 	;-----------------------------------------------------------------------------------------
-00470 0026 	;AUSART Serial ISR
-00471 0026 	;
-00472 0026 0020 		movlb	0	;bank 0
-00473 0027 1E91 		BTFSS	PIR1,RCIF	;RX has a byte?
-00474 0028 3201 		BRA	IRQ_Ser_End
-00475 0029 20C4 		CALL	RX_TheByte
-00476 002A 	;
-00477 002A 	IRQ_Ser_End:
-00478 002A 	;-----------------------------------------------------------------------------------------
-00479 002A 	;
-00480 002A 	;=========================================================================================
-00481 002A 0020 		MOVLB	0	;Bank0
-00482 002B 1911 		BTFSC	PIR1,CCP1IF
-00483 002C 21E1 		CALL	ISR_ServoCCP1
-00484 002D 	;
-00485 002D 1812 		BTFSC	PIR2,CCP2IF
-00486 002E 2257 		CALL	ISR_ServoCCP2
-00487 002F 	;
-00488 002F 	;=========================================================================================
-00489 002F 	;-----------------------------------------------------------------------------------------
-00490 002F 	;--------------------------------------------------------------------
-00491 002F 	;
-00492 002F 0009 		retfie		; return from interrupt
-00493 0030 	;
-00494 0030 	;
-00495 0030 	;==============================================================================================
-00496 0030 	;==============================================================================================
-00497 0030 	;
-00498 0030 		include <F1847_Common.inc>
+00435 000A 206E 		call	DecTimer2
+00436 000B 206C 		call	DecTimer3
+00437 000C 206A 		call	DecTimer4
+00438 000D 	;
+00439 000D 	;-----------------------------------------------------------------
+00440 000D 	; blink LEDs
+00441 000D 308D 		MOVLW	LOW TRISB
+00442 000E 0084 		MOVWF	FSR0L
+00443 000F 3000 		MOVLW	HIGH TRISB
+00444 0010 0085 		MOVWF	FSR0H
+00445 0011 	; All LEDs off
+00446 0011 1400 		BSF	INDF0,LED1_Bit
+00447 0012 1600 		BSF	INDF0,LED2_Bit
+00448 0013 1680 		BSF	INDF0,LED3_Bit
+00449 0014 	;
+00450 0014 	; Read SW's
+00451 0014 103B 		BCF	SW1_Flag
+00452 0015 10BB 		BCF	SW2_Flag
+00453 0016 113B 		BCF	SW3_Flag
+00454 0017 1C0D 		BTFSS	SW1_In
+00455 0018 143B 		BSF	SW1_Flag
+00456 0019 1E0D 		BTFSS	SW2_In
+00457 001A 14BB 		BSF	SW2_Flag
+00458 001B 1E8D 		BTFSS	SW3_In
+00459 001C 153B 		BSF	SW3_Flag
+00460 001D 	; Dec LED time
+00461 001D 0BA3 		DECFSZ	SysLED_Count,F	;Is it time?
+00462 001E 3207 		bra	TMR2_Done	; No, not yet
+00463 001F 	;
+00464 001F 0820 		MOVF	SysLED_Time,W
+00465 0020 00A3 		MOVWF	SysLED_Count
+00466 0021 	; Flash LEDs
+00467 0021 1000 		BCF	INDF0,LED1_Bit	;Sys LED ON
+00468 0022 19BB 		BTFSC	LED2_Flag
+00469 0023 1200 		BCF	INDF0,LED2_Bit	;LED 2 ON
+00470 0024 1A3B 		BTFSC	LED3_Flag
+00471 0025 1280 		BCF	INDF0,LED3_Bit	;LED 3 ON
+00472 0026 	;
+00473 0026 	;
+00474 0026 	TMR2_Done:
+00475 0026 	SystemTick_end:	
+00476 0026 	;
+00477 0026 	;-----------------------------------------------------------------------------------------
+00478 0026 	;AUSART Serial ISR
+00479 0026 	;
+00480 0026 0020 		movlb	0	;bank 0
+00481 0027 1E91 		BTFSS	PIR1,RCIF	;RX has a byte?
+00482 0028 3201 		BRA	IRQ_Ser_End
+00483 0029 20C4 		CALL	RX_TheByte
+00484 002A 	;
+00485 002A 	IRQ_Ser_End:
+00486 002A 	;-----------------------------------------------------------------------------------------
+00487 002A 	;
+00488 002A 	;=========================================================================================
+00489 002A 0020 		MOVLB	0	;Bank0
+00490 002B 1911 		BTFSC	PIR1,CCP1IF
+00491 002C 21E1 		CALL	ISR_ServoCCP1
+00492 002D 	;
+00493 002D 1812 		BTFSC	PIR2,CCP2IF
+00494 002E 2257 		CALL	ISR_ServoCCP2
+00495 002F 	;
+00496 002F 	;=========================================================================================
+00497 002F 	;-----------------------------------------------------------------------------------------
+00498 002F 	;--------------------------------------------------------------------
+00499 002F 	;
+00500 002F 0009 		retfie		; return from interrupt
+00501 0030 	;
+00502 0030 	;
+00503 0030 	;==============================================================================================
+00504 0030 	;==============================================================================================
+00505 0030 	;
+00506 0030 		include <F1847_Common.inc>
 00001 0030 	;=========================================================================================
 00002 0030 	; Commonly used routines PIC16F1847 version
 00003 0030 	;
@@ -694,6 +712,9 @@ SimpleServo16PS.asm                                                   Page: 1
 00025 0030 	; CopyToRam	(1+0) copy param memory (EEPROM) to ram, call once, FSR0
 00026 0030 	; SaveParams	(1+0) copy ram to param memory (EEPROM), FSR0
 00027 0030 	;
+SimpleServo16PS.asm                                                   Page: 8
+/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
+
 00028 0030 	; DecTimer4	(0+0) Decrement routine for 16 bit timers, FSR0
 00029 0030 	; DecTimer3
 00030 0030 	; DecTimer2
@@ -712,9 +733,6 @@ SimpleServo16PS.asm                                                   Page: 1
 00043 0030 	;
 00044 0030 	; EEReadW	(0+0) Read EEPROM address in W
 00045 0030 	; EERead	(0+0) Read EEPROM address in EEAddrTemp
-SimpleServo16PS.asm                                                   Page: 8
-/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
-
 00046 0030 	; EEWriteW	(0+0) Write EEPROM address in W, Data in EEDataTemp
 00047 0030 	; EEWrite	(0+0) Write EEPROM address in EEAdrTemp, Data in EEDataTemp, FSR0
 00048 0030 	;
@@ -796,6 +814,9 @@ SimpleServo16PS.asm                                                   Page: 1
 00124 0062 00A5 		MOVWF	EEDataTemp
 00125 0063 20A4 		CALL	EEWrite
 00126 0064 0AA4 		INCF	EEAddrTemp,F
+SimpleServo16PS.asm                                                   Page: 9
+/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
+
 00127 0065 303C 		MOVLW	LastRAMParam+1	;last byte
 00128 0066 0204 		SUBWF	FSR0L,W
 00129 0067 		SKPZ
@@ -814,9 +835,6 @@ SimpleServo16PS.asm                                                   Page: 1
 00141 006C 302B 	DecTimer3	movlw	Timer3Hi
 00142 006D 3203 		bra	DecTimer
 00143 006E 3029 	DecTimer2	movlw	Timer2Hi
-SimpleServo16PS.asm                                                   Page: 9
-/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
-
 00144 006F 3201 		bra	DecTimer
 00145 0070 3027 	DecTimer1	movlw	Timer1Hi
 00146 0071 	;DecTimer
@@ -898,6 +916,9 @@ SimpleServo16PS.asm                                                   Page: 1
 00236 009D 1315 		bcf	EECON1,CFGS	;not config mem
 00237 009E 1395 		bcf	EECON1,EEPGD	;Data memory
 00238 009F 1415 		bsf	EECON1,RD
+SimpleServo16PS.asm                                                   Page: 10
+/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
+
 00239 00A0 0813 		movf	EEDAT,W	;W=EEDAT
 00240 00A1 0020 		MOVLB	0x00	;Bank 0
 00241 00A2 0008 		return
@@ -916,9 +937,6 @@ SimpleServo16PS.asm                                                   Page: 1
 00254 00A4 	; entry: EEPROM address to write in EEAdrTemp
 00255 00A4 	;        EEPROM data to write in EEDataTemp
 00256 00A4 	;        Bank 0 selected
-SimpleServo16PS.asm                                                   Page: 10
-/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
-
 00257 00A4 	; exit: Bank 0 selected
 00258 00A4 	;
 00259 00A4 0824 	EEWrite	MOVF	EEAddrTemp,W
@@ -953,7 +971,7 @@ SimpleServo16PS.asm                                                   Page: 1
 00288 00BC 	;
 00289 00BC 	;
 00290 00BC 	;
-00499 00BC 		include <SerBuff1938.inc>
+00507 00BC 		include <SerBuff1938.inc>
 00001 00BC 	;=========================================================================================
 00002 00BC 	;
 00003 00BC 	;    Filename:      SerBuff.inc
@@ -1000,6 +1018,9 @@ SimpleServo16PS.asm                                                   Page: 1
 00044 00BC 	;	Ser_In_Buff:20
 00045 00BC 	;	Ser_Out_Buff:20
 00046 00BC 	;	endc
+SimpleServo16PS.asm                                                   Page: 11
+/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
+
 00047 00BC 	;
 00048 00BC 	;=========================================================================================
 00049 00BC 	; Routines	(Bank In/Bank Out)
@@ -1018,9 +1039,6 @@ SimpleServo16PS.asm                                                   Page: 1
 00062 00BC 	;=========================================================================================
 00063 00BC 	;=========================================================================================
 00064 00BC 	; *** Put in main loop ***
-SimpleServo16PS.asm                                                   Page: 11
-/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
-
 00065 00BC 	;
 00066 00BC 	; Handle Serial Communications
 00067 00BC 	;	BTFSC	PIR1,TXIF	;TX done?
@@ -1102,6 +1120,9 @@ SimpleServo16PS.asm                                                   Page: 1
 00143 00BC 1930 	TX_TheByte	BTFSC	DataSentFlag
 00144 00BD 0008 		RETURN
 00145 00BE 082E 		MOVF	TXByte,W	
+SimpleServo16PS.asm                                                   Page: 12
+/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
+
 00146 00BF 0023  a		MOVLB	TXREG	;banksel
 00145 00C0 		BANKSEL	TXREG
 00147 00C0 009A 		MOVWF	TXREG
@@ -1120,9 +1141,6 @@ SimpleServo16PS.asm                                                   Page: 1
 00158 00C7 1D03      M		BTFSS	STATUS,Z		BTFSS	STATUS,Z
 00159 00C8 3205 		BRA	RX_TheByte_Err	; yes
 00160 00C9 0819 		MOVF	RCREG,W
-SimpleServo16PS.asm                                                   Page: 12
-/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
-
 00161 00CA 	;
 00162 00CA 0020 		movlb	0x00	; bank 0
 00163 00CB 00AF 		MOVWF	RXByte
@@ -1204,6 +1222,9 @@ SimpleServo16PS.asm                                                   Page: 1
 00238 00FB 	;
 00239 00FB 	; Entry: none
 00240 00FB 	; Exit: W=bytes in buffer, Z
+SimpleServo16PS.asm                                                   Page: 13
+/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
+
 00241 00FB 	;
 00242 00FB 0022 	GetSerInBytes	MOVLB	Ser_Buff_Bank
 00243 00FC 0820 		MOVF	Ser_In_Bytes,W
@@ -1222,9 +1243,6 @@ SimpleServo16PS.asm                                                   Page: 1
 00256 0102 0008 		return
 00257 0103 	;
 00258 0103 	;=========================================================================================
-SimpleServo16PS.asm                                                   Page: 13
-/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
-
 00259 0103 	; Put the byte in W into the serial output buffer
 00260 0103 	;
 00261 0103 	; Entry: W = byte to store
@@ -1306,8 +1324,11 @@ SimpleServo16PS.asm                                                   Page: 1
 00335 012A 	;
 00336 012A 	;
 00337 012A 	;
+SimpleServo16PS.asm                                                   Page: 14
+/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
+
 00338 012A 	;
-00500 012A 		include <RS232_Parse.inc>
+00508 012A 		include <RS232_Parse.inc>
 00001 012A 	;=========================================================================================
 00002 012A 	;
 00003 012A 	;    Filename:      RS232_Parse.inc
@@ -1324,9 +1345,6 @@ SimpleServo16PS.asm                                                   Page: 1
 00014 012A 	; RS232_Parse	Call from main loop
 00015 012A 	; RS232_ClearTXData	Clear the TX data, FSR1
 00016 012A 	; RS232_Send	Send the data at TX_data, FSR0, FSR1
-SimpleServo16PS.asm                                                   Page: 14
-/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
-
 00017 012A 	;
 00018 012A 	;=========================================================================================
 00019 012A 	; Notes:
@@ -1408,6 +1426,9 @@ SimpleServo16PS.asm                                                   Page: 1
 00100 012A 	; if RXDataValidFlag is set data may be used
 00101 012A 	;
 00102 012A 	;=========================================================================================
+SimpleServo16PS.asm                                                   Page: 15
+/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
+
 00103 012A 	; Parse any bytes received by the serial port
 00104 012A 	;
 00105 012A 	; Receive 0xFF,0xFF,SA0,(SA1),DA0,(DA1),Cmd,Data0,Data1,Data2,CS
@@ -1426,9 +1447,6 @@ SimpleServo16PS.asm                                                   Page: 1
 00117 012E 	;
 00118 012E 0020 		movlb	0	;bank 0
 00119 012F 08A6 		movf	Timer1Lo,F
-SimpleServo16PS.asm                                                   Page: 15
-/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
-
 00120 0130 		SKPZ		;Timed out?
 00120 0130 1D03      M		BTFSS	STATUS,Z		BTFSS	STATUS,Z
 00121 0131 3203 		bra	RS232_Parse_Byte	; no
@@ -1510,6 +1528,9 @@ SimpleServo16PS.asm                                                   Page: 1
 00206 0165 1D03      M		BTFSS	STATUS,Z		BTFSS	STATUS,Z
 00207 0166 11A1 		bcf	RXDstIsMe
 00208 0167 1620 		bsf	DestAddLoRXd
+SimpleServo16PS.asm                                                   Page: 16
+/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
+
 00209 0168 0878 		movf	Param78,W
 00210 0169 00A5 		movwf	RX_DstAdd
 00211 016A 06A3 		xorwf	RX_CSUM,F
@@ -1528,9 +1549,6 @@ SimpleServo16PS.asm                                                   Page: 1
 00238 0171 3000 		movlw	high RX_TempData
 00239 0172 0085 		movwf	FSR0H
 00240 0173 0878 		movf	Param78,W
-SimpleServo16PS.asm                                                   Page: 16
-/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
-
 00241 0174 06A3 		xorwf	RX_CSUM,F
 00242 0175 0080 		movwf	INDF0
 00243 0176 0AA2 		incf	RX_DataCount,F
@@ -1612,6 +1630,9 @@ SimpleServo16PS.asm                                                   Page: 1
 00317 01A7 	;=========================================================================================
 00318 01A7 	; Send a data packet
 00319 01A7 	;
+SimpleServo16PS.asm                                                   Page: 17
+/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
+
 00320 01A7 	;Entry: TX_Data = Data to send 
 00321 01A7 	;Exit: TX_Data is cleared
 00322 01A7 	;Ram used: Param78,Param79,Param7A,FSR0,FSR1
@@ -1630,9 +1651,6 @@ SimpleServo16PS.asm                                                   Page: 1
 00341 01AC 	;
 00342 01AC 		if RP_LongAddr
 00346 01AC 		endif
-SimpleServo16PS.asm                                                   Page: 17
-/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
-
 00347 01AC 	;
 00348 01AC 0838 		movf	RS232_MasterAddr,W	;destination address
 00349 01AD 06FA 		xorwf	Param7A,F
@@ -1687,81 +1705,81 @@ SimpleServo16PS.asm                                                   Page: 1
 00401 01BE 	;
 00402 01BE 	;
 00403 01BE 	;
-00501 01BE 	;
-00502 01BE 	;==============================================================================================
-00503 01BE 	;
-00504 01BE 	start	mLongCall	InitializeIO
-00504 01BE 3189      M		movlp	InitializeIO	                       movlp                  Destination
-00504 01BF 21CA      M		call	InitializeIO	                       call                   Destination
-00504 01C0 3181      M		movlp	$	                       movlp                  $
-00505 01C1 	;
-00506 01C1 	;=========================================================================================
-00507 01C1 	; Setup default servo data
-00508 01C1 	;
-00509 01C1 238A 		CALL	ServoInit16
-00510 01C2 2379 		CALL	StartServos
-00511 01C3 	;
-00512 01C3 	;
-00513 01C3 	;=========================================================================================
-00514 01C3 	;*****************************************************************************************
-00515 01C3 	;=========================================================================================
-00516 01C3 0064 	MainLoop	CLRWDT
-00517 01C4 	;
-00518 01C4 20FB 		call	GetSerInBytes
-00519 01C5 		SKPZ		;Any data?
-00519 01C5 1D03      M		BTFSS	STATUS,Z		BTFSS	STATUS,Z
-00520 01C6 212A 		CALL	RS232_Parse	; yes
-00521 01C7 	;
-00522 01C7 	;---------------------
-00523 01C7 	; Handle Serial Communications
-00524 01C7 	;
-00525 01C7 0021 		movlb	1
-00526 01C8 1CA1 		btfss	RXDataIsNew
-00527 01C9 3203 		bra	ML_1
-00528 01CA 		mLongCall	HandleRXData
-00528 01CA 3188      M		movlp	HandleRXData	                       movlp                  Destination
-00528 01CB 2004      M		call	HandleRXData	                       call                   Destination
-00528 01CC 3181      M		movlp	$	                       movlp                  $
-00529 01CD 0020 	ML_1	movlb	0	;Bank 0
-00530 01CE 	;
-00531 01CE 1A11 		BTFSC	PIR1,TXIF	;TX done?
-00532 01CF 20BC 		CALL	TX_TheByte	; Yes
-00533 01D0 	;
-00534 01D0 	; move any serial data received into the 32 byte input buffer
-00535 01D0 1CB0 		BTFSS	DataReceivedFlag
-00536 01D1 3203 		BRA	ML_Ser_Out
-00537 01D2 082F 		MOVF	RXByte,W
-00538 01D3 10B0 		BCF	DataReceivedFlag
+00509 01BE 	;
+00510 01BE 	;==============================================================================================
+00511 01BE 	;
+00512 01BE 	start	mLongCall	InitializeIO
+00512 01BE 3189      M		movlp	InitializeIO	                       movlp                  Destination
+00512 01BF 21CA      M		call	InitializeIO	                       call                   Destination
+00512 01C0 3181      M		movlp	$	                       movlp                  $
+00513 01C1 	;
+00514 01C1 	;=========================================================================================
+00515 01C1 	; Setup default servo data
+00516 01C1 	;
+00517 01C1 238F 		CALL	ServoInit16
+00518 01C2 237E 		CALL	StartServos
+00519 01C3 	;
+00520 01C3 	;
+00521 01C3 	;=========================================================================================
+00522 01C3 	;*****************************************************************************************
+00523 01C3 	;=========================================================================================
+00524 01C3 0064 	MainLoop	CLRWDT
+00525 01C4 	;
+00526 01C4 20FB 		call	GetSerInBytes
+00527 01C5 		SKPZ		;Any data?
+00527 01C5 1D03      M		BTFSS	STATUS,Z		BTFSS	STATUS,Z
+00528 01C6 212A 		CALL	RS232_Parse	; yes
+00529 01C7 	;
+00530 01C7 	;---------------------
+00531 01C7 	; Handle Serial Communications
 SimpleServo16PS.asm                                                   Page: 18
 /Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
 
-00539 01D4 20D6 		CALL	StoreSerIn
-00540 01D5 	;
-00541 01D5 	; If the serial data has been sent and there are bytes in the buffer, send the next byte
-00542 01D5 	;
-00543 01D5 1D30 	ML_Ser_Out	BTFSS	DataSentFlag
-00544 01D6 3205 		BRA	ML_Ser_End
-00545 01D7 2119 		CALL	GetSerOut
-00546 01D8 1C78 		BTFSS	Param78,0
-00547 01D9 3202 		BRA	ML_Ser_End
-00548 01DA 00AE 		MOVWF	TXByte
-00549 01DB 1130 		BCF	DataSentFlag
-00550 01DC 	ML_Ser_End:
-00551 01DC 	;----------------------
-00552 01DC 	;
-00553 01DC 229D 		CALL	IdleServos
-00554 01DD 	;	CALL	TestServoLib	;tc
-00555 01DD 	;
-00556 01DD 0020 		MOVLB	0x00
-00557 01DE 183B 		BTFSC	SW1_Flag	;manual reset
-00558 01DF 29BE 		GOTO	start
-00559 01E0 	;
-00560 01E0 29C3 		goto	MainLoop
-00561 01E1 	;=========================================================================================
-00562 01E1 	;*****************************************************************************************
-00563 01E1 	;=========================================================================================
-00564 01E1 	;
-00565 01E1 		include <ServoLib.inc>
+00532 01C7 	;
+00533 01C7 0021 		movlb	1
+00534 01C8 1CA1 		btfss	RXDataIsNew
+00535 01C9 3203 		bra	ML_1
+00536 01CA 		mLongCall	HandleRXData
+00536 01CA 3188      M		movlp	HandleRXData	                       movlp                  Destination
+00536 01CB 2004      M		call	HandleRXData	                       call                   Destination
+00536 01CC 3181      M		movlp	$	                       movlp                  $
+00537 01CD 0020 	ML_1	movlb	0	;Bank 0
+00538 01CE 	;
+00539 01CE 1A11 		BTFSC	PIR1,TXIF	;TX done?
+00540 01CF 20BC 		CALL	TX_TheByte	; Yes
+00541 01D0 	;
+00542 01D0 	; move any serial data received into the 32 byte input buffer
+00543 01D0 1CB0 		BTFSS	DataReceivedFlag
+00544 01D1 3203 		BRA	ML_Ser_Out
+00545 01D2 082F 		MOVF	RXByte,W
+00546 01D3 10B0 		BCF	DataReceivedFlag
+00547 01D4 20D6 		CALL	StoreSerIn
+00548 01D5 	;
+00549 01D5 	; If the serial data has been sent and there are bytes in the buffer, send the next byte
+00550 01D5 	;
+00551 01D5 1D30 	ML_Ser_Out	BTFSS	DataSentFlag
+00552 01D6 3205 		BRA	ML_Ser_End
+00553 01D7 2119 		CALL	GetSerOut
+00554 01D8 1C78 		BTFSS	Param78,0
+00555 01D9 3202 		BRA	ML_Ser_End
+00556 01DA 00AE 		MOVWF	TXByte
+00557 01DB 1130 		BCF	DataSentFlag
+00558 01DC 	ML_Ser_End:
+00559 01DC 	;----------------------
+00560 01DC 	;
+00561 01DC 229D 		CALL	IdleServos
+00562 01DD 	;	CALL	TestServoLib	;tc
+00563 01DD 	;
+00564 01DD 0020 		MOVLB	0x00
+00565 01DE 183B 		BTFSC	SW1_Flag	;manual reset
+00566 01DF 29BE 		GOTO	start
+00567 01E0 	;
+00568 01E0 29C3 		goto	MainLoop
+00569 01E1 	;=========================================================================================
+00570 01E1 	;*****************************************************************************************
+00571 01E1 	;=========================================================================================
+00572 01E1 	;
+00573 01E1 		include <ServoLib.inc>
 00001 01E1 	;=========================================================================================
 00002 01E1 	;
 00003 01E1 	;    Filename:      ServoLib.inc
@@ -1816,6 +1834,9 @@ SimpleServo16PS.asm                                                   Page: 1
 00052 01E1 	;  ISR_ServoCCP1
 00053 01E1 	;  ISR_ServoCCP2
 00054 01E1 	;------------------
+SimpleServo16PS.asm                                                   Page: 19
+/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
+
 00055 01E1 	; IdleServos	Call from main loop
 00056 01E1 	;
 00057 01E1 	; IdleServos_MovPlus
@@ -1834,9 +1855,6 @@ SimpleServo16PS.asm                                                   Page: 1
 00070 01E1 	;
 00071 01E1 	; ServoInit16	Call once to init vars
 00072 01E1 	; EEPromToServoParams
-SimpleServo16PS.asm                                                   Page: 19
-/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
-
 00073 01E1 	; EEPromToSequencer
 00074 01E1 	; ServoParamsToEEProm
 00075 01E1 	; SequencerToEEProm
@@ -1918,6 +1936,9 @@ SimpleServo16PS.asm                                                   Page: 1
 00141 01FD 0093 		MOVWF	CCP1CON	;CCP1 clr on match
 00142 01FE 	;Calculate dwell time
 00143 01FE 3094 		MOVLW	LOW kServoDwellTimeA	;2.25mS
+SimpleServo16PS.asm                                                   Page: 20
+/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
+
 00144 01FF 00E3 		MOVWF	CalcdDwell
 00145 0200 3011 		MOVLW	HIGH kServoDwellTimeA
 00146 0201 00E4 		MOVWF	CalcdDwellH
@@ -1936,9 +1957,6 @@ SimpleServo16PS.asm                                                   Page: 1
 00154 020C 0863 		MOVF	CalcdDwell,W
 00155 020D 001A 		MOVWI	FSR0++
 00156 020E 0864 		MOVF	CalcdDwellH,W
-SimpleServo16PS.asm                                                   Page: 20
-/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
-
 00157 020F 001A 		MOVWI	FSR0++
 00158 0210 	;Set Value Sent Flag
 00159 0210 1401 		BSF	INDF1,ValueSentFlag0_7
@@ -2020,6 +2038,9 @@ SimpleServo16PS.asm                                                   Page: 1
 00225 024D 009A 		MOVWF	CCP2CON
 00226 024E 	;	
 00227 024E 0020 		MOVLB	0	; bank 0
+SimpleServo16PS.asm                                                   Page: 21
+/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
+
 00228 024F 1111 		BCF	PIR1,CCP1IF
 00229 0250 1012 		BCF	PIR2,CCP2IF
 00230 0251 0008 		RETURN
@@ -2038,9 +2059,6 @@ SimpleServo16PS.asm                                                   Page: 1
 00243 0257 0025 	ISR_ServoCCP2	MOVLB	0x05	; bank 5
 00244 0258 	;
 00245 0258 19E2 		BTFSC	ServoCtlFlags,CyclePulseEnd2	;Is the current pulse ending?
-SimpleServo16PS.asm                                                   Page: 21
-/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
-
 00246 0259 2A8C 		GOTO	IRQ_Servo2_OL
 00247 025A 	;
 00248 025A 2A9A 		GOTO	IRQ_Servo2_X	;tc
@@ -2122,6 +2140,9 @@ SimpleServo16PS.asm                                                   Page: 1
 00304 0293 	; Copy dwell to ccpr
 00305 0293 0012 		MOVIW	FSR0++
 00306 0294 0798 		ADDWF	CCPR2L,F
+SimpleServo16PS.asm                                                   Page: 22
+/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
+
 00307 0295 0012 		MOVIW	FSR0++
 00308 0296 3D99 		ADDWFC	CCPR2H,F
 00309 0297 	;
@@ -2138,1010 +2159,1072 @@ SimpleServo16PS.asm                                                   Page: 1
 00320 029D 	; Servo motion control
 00321 029D 	; Call from main loop
 00322 029D 	;
-00323 029D 0025 	IdleServos	MOVLB	0x05	; bank 5
-00324 029E 1865 		BTFSC	SequencerFlags,SeqActive
-SimpleServo16PS.asm                                                   Page: 22
-/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
-
-00325 029F 2446 		call	DoSequenceCmd
-00326 02A0 	;
-00327 02A0 2371 		CALL	SetFSR0ToServoFlags
-00328 02A1 19E0 		BTFSC	CMDServoIDX,3
-00329 02A2 2AA8 		GOTO	IdleServos8_15
-00330 02A3 	;
-00331 02A3 1D00 		BTFSS	INDF0,ServoOnBit0_7	;Is this servo active?
-00332 02A4 2B19 		GOTO	IdleServos_Next	; No
-00333 02A5 1C00 		BTFSS	INDF0,ValueSentFlag0_7	;Ready for an update?
-00334 02A6 2B19 		GOTO	IdleServos_Next	; No
-00335 02A7 2AAC 		GOTO	IdleServos_Update
+00323 029D 0025 	IdleServos	movlb	0x05	;Bank 5
+00324 029E 	; Copy sequencer flags to ssStatus+2
+00325 029E 0865 		movf	SequencerFlags,W
+00326 029F 0020 		movlb	0	;Bank 0
+00327 02A0 00B3 		movwf	ssStatus+2
+00328 02A1 0025 		movlb	0x05	;Bank 5
+00329 02A2 1865 		BTFSC	SequencerFlags,SeqActive
+00330 02A3 244B 		call	DoSequenceCmd
+00331 02A4 	;
+00332 02A4 0025 		movlb	0x05	;Bank 5
+00333 02A5 2376 		CALL	SetFSR0ToServoFlags
+00334 02A6 19E0 		BTFSC	CMDServoIDX,3
+00335 02A7 2AAD 		GOTO	IdleServos8_15
 00336 02A8 	;
-00337 02A8 1F00 	IdleServos8_15	BTFSS	INDF0,ServoOnBit8_15	;Is this servo active?
-00338 02A9 2B19 		GOTO	IdleServos_Next	; No
-00339 02AA 1E00 		BTFSS	INDF0,ValueSentFlag8_15	;Ready for an update?
-00340 02AB 2B19 		GOTO	IdleServos_Next	; No
-00341 02AC 	;
-00342 02AC 1DE0 	IdleServos_Update	BTFSS	CMDServoIDX,3
-00343 02AD 1000 		BCF	INDF0,ValueSentFlag0_7	;Mark as updated
-00344 02AE 19E0 		BTFSC	CMDServoIDX,3
-00345 02AF 1200 		BCF	INDF0,ValueSentFlag8_15	;Mark as updated
-00346 02B0 	;
-00347 02B0 	;FSR0 = Command Position
-00348 02B0 3560 		LSLF	CMDServoIDX,W
-00349 02B1 		LOADFSR0W	CMDSigTime
-00349 02B1 3E20      M		addlw	low CMDSigTime		addlw 	low ADDRESS
-00349 02B2 0084      M		movwf	FSR0L		movwf 	FSR0L
-00349 02B3 0185      M		clrf	FSR0H		clrf	FSR0H
-00349 02B4 3021      M		movlw	high CMDSigTime		movlw	high ADDRESS
-00349 02B5 3D85      M		addwfc	FSR0H,F		addwfc	FSR0H,F	;<< needed to work w/ contig ram
-00350 02B6 	;FSR1 = Current Position
-00351 02B6 3560 		LSLF	CMDServoIDX,W
-00352 02B7 		LOADFSR1W	SigOutTime
-00352 02B7 3E90      M		addlw	low SigOutTime		addlw 	low ADDRESS
-00352 02B8 0086      M		movwf	FSR1L		movwf 	FSR1L
-00352 02B9 0187      M		clrf	FSR1H		clrf	FSR1H
-00352 02BA 3021      M		movlw	high SigOutTime		movlw	high ADDRESS
-00352 02BB 3D87      M		addwfc	FSR1H,F		addwfc	FSR1H,F	;<< needed to work w/ contig ram
-00353 02BC 	; Param7D:Param7C = (FSR0)-(FSR1) Cmd-Cur
-00354 02BC 0801 		MOVF	INDF1,W	;Cur, SigOutTime
-00355 02BD 0200 		SUBWF	INDF0,W	;Cmd
-00356 02BE 00FC 		MOVWF	Param7C
-00357 02BF 0A84 		INCF	FSR0L,F
-00358 02C0 0A86 		INCF	FSR1L,F
-00359 02C1 0801 		MOVF	INDF1,W	;SigOutTimeH
-00360 02C2 3B00 		SUBWFB	INDF0,W
-00361 02C3 00FD 		MOVWF	Param7D
-00362 02C4 0386 		DECF	FSR1L,F	;FSR1=SigOutTime+Servo#x2
-00363 02C5 	;(FSR0)=ServoFlags
-00364 02C5 	; if Param7D:Param7C = 0 then we are In Position
-00365 02C5 087C 		MOVF	Param7C,W
-00366 02C6 047D 		IORWF	Param7D,W
-00367 02C7 		SKPNZ		;Command = Current?
-00367 02C7 1903      M		BTFSC	STATUS,Z		BTFSC	STATUS,Z
-00368 02C8 2B14 		GOTO	IdleServos_InPos	; Yes, we are in-position
-00369 02C9 	;
-00370 02C9 231D 		CALL	IdleServos_Accel
-00371 02CA 	; Clear the In-Position bit
-00372 02CA 2371 		CALL	SetFSR0ToServoFlags
-00373 02CB 1DE0 		BTFSS	CMDServoIDX,3
-00374 02CC 1080 		BCF	INDF0,InPositionFlag0_7
-00375 02CD 19E0 		BTFSC	CMDServoIDX,3
-00376 02CE 1280 		BCF	INDF0,InPositionFlag8_15
-00377 02CF 	;
-00378 02CF 1FFD 		BTFSS	Param7D,7	;Cmd<Cur? Set if Cur>Cmd
-00379 02D0 2AFA 		GOTO	IdleServos_MovPlus	; Yes
-00380 02D1 	;Move minus
-00381 02D1 1DE0 		BTFSS	CMDServoIDX,3
-00382 02D2 1180 		BCF	INDF0,MovingFWD0_7
-00383 02D3 19E0 		BTFSC	CMDServoIDX,3
-00384 02D4 1380 		BCF	INDF0,MovingFWD8_15
-00385 02D5 	; Get Speed
-00386 02D5 2351 		CALL	GetSpeed
-00387 02D6 00F8 		MOVWF	Param78
-00388 02D7 0F7D 		INCFSZ	Param7D,W	;Dist=0xFFxx?
-00389 02D8 2AE2 		GOTO	IdleServos_Minus	; No
-00390 02D9 0878 	IdleServos_L1	MOVF	Param78,W
-00391 02DA 077C 		ADDWF	Param7C,W
-00392 02DB 1C03 		BTFSS	_C	;Dist<Param78?
-00393 02DC 2AE2 		GOTO	IdleServos_Minus	; No
-00394 02DD 0B78 		DECFSZ	Param78,W	;Speed>1?
-00395 02DE 2AE0 		GOTO	IdleServos_DecAcc	; Yes
-00396 02DF 2AE2 		GOTO	IdleServos_Minus
-00397 02E0 03F8 	IdleServos_DecAcc	DECF	Param78,F
-00398 02E1 2AD9 		GOTO	IdleServos_L1	
-00399 02E2 	;
-00400 02E2 	; Subtract speed from current position
-00401 02E2 0878 	IdleServos_Minus	MOVF	Param78,W
-00402 02E3 0201 		SUBWF	INDF1,W	;SigOutTime
-00403 02E4 00FC 		MOVWF	Param7C
-00404 02E5 0A86 		INCF	FSR1L,F
-00405 02E6 3000 		MOVLW	0x00
-00406 02E7 3B01 		SUBWFB	INDF1,W	;SigOutTimeH
-00407 02E8 00FD 		MOVWF	Param7D
-00408 02E9 	;
-00409 02E9 	;FSR1 = SigOutTime0_7+1 + Servo# x 2
-00410 02E9 3560 	IdleServos_Clamp	LSLF	CMDServoIDX,W	
-00411 02EA 	;	CALL	ClampMinMax
-00412 02EA 	;
+00337 02A8 1D00 		BTFSS	INDF0,ServoOnBit0_7	;Is this servo active?
+00338 02A9 2B1E 		GOTO	IdleServos_Next	; No
+00339 02AA 1C00 		BTFSS	INDF0,ValueSentFlag0_7	;Ready for an update?
+00340 02AB 2B1E 		GOTO	IdleServos_Next	; No
+00341 02AC 2AB1 		GOTO	IdleServos_Update
+00342 02AD 	;
+00343 02AD 1F00 	IdleServos8_15	BTFSS	INDF0,ServoOnBit8_15	;Is this servo active?
+00344 02AE 2B1E 		GOTO	IdleServos_Next	; No
+00345 02AF 1E00 		BTFSS	INDF0,ValueSentFlag8_15	;Ready for an update?
+00346 02B0 2B1E 		GOTO	IdleServos_Next	; No
+00347 02B1 	;
+00348 02B1 1DE0 	IdleServos_Update	BTFSS	CMDServoIDX,3
+00349 02B2 1000 		BCF	INDF0,ValueSentFlag0_7	;Mark as updated
+00350 02B3 19E0 		BTFSC	CMDServoIDX,3
+00351 02B4 1200 		BCF	INDF0,ValueSentFlag8_15	;Mark as updated
+00352 02B5 	;
+00353 02B5 	;FSR0 = Command Position
+00354 02B5 3560 		LSLF	CMDServoIDX,W
+00355 02B6 		LOADFSR0W	CMDSigTime
+00355 02B6 3E20      M		addlw	low CMDSigTime		addlw 	low ADDRESS
+00355 02B7 0084      M		movwf	FSR0L		movwf 	FSR0L
+00355 02B8 0185      M		clrf	FSR0H		clrf	FSR0H
+00355 02B9 3021      M		movlw	high CMDSigTime		movlw	high ADDRESS
+00355 02BA 3D85      M		addwfc	FSR0H,F		addwfc	FSR0H,F	;<< needed to work w/ contig ram
+00356 02BB 	;FSR1 = Current Position
+00357 02BB 3560 		LSLF	CMDServoIDX,W
+00358 02BC 		LOADFSR1W	SigOutTime
+00358 02BC 3E90      M		addlw	low SigOutTime		addlw 	low ADDRESS
+00358 02BD 0086      M		movwf	FSR1L		movwf 	FSR1L
+00358 02BE 0187      M		clrf	FSR1H		clrf	FSR1H
+00358 02BF 3021      M		movlw	high SigOutTime		movlw	high ADDRESS
+00358 02C0 3D87      M		addwfc	FSR1H,F		addwfc	FSR1H,F	;<< needed to work w/ contig ram
+00359 02C1 	; Param7D:Param7C = (FSR0)-(FSR1) Cmd-Cur
+00360 02C1 0801 		MOVF	INDF1,W	;Cur, SigOutTime
+00361 02C2 0200 		SUBWF	INDF0,W	;Cmd
+00362 02C3 00FC 		MOVWF	Param7C
+00363 02C4 0A84 		INCF	FSR0L,F
+00364 02C5 0A86 		INCF	FSR1L,F
+00365 02C6 0801 		MOVF	INDF1,W	;SigOutTimeH
+00366 02C7 3B00 		SUBWFB	INDF0,W
+00367 02C8 00FD 		MOVWF	Param7D
+00368 02C9 0386 		DECF	FSR1L,F	;FSR1=SigOutTime+Servo#x2
+00369 02CA 	;(FSR0)=ServoFlags
+00370 02CA 	; if Param7D:Param7C = 0 then we are In Position
+00371 02CA 087C 		MOVF	Param7C,W
+00372 02CB 047D 		IORWF	Param7D,W
+00373 02CC 		SKPNZ		;Command = Current?
+00373 02CC 1903      M		BTFSC	STATUS,Z		BTFSC	STATUS,Z
+00374 02CD 2B19 		GOTO	IdleServos_InPos	; Yes, we are in-position
+00375 02CE 	;
+00376 02CE 2322 		CALL	IdleServos_Accel
+00377 02CF 	; Clear the In-Position bit
+00378 02CF 2376 		CALL	SetFSR0ToServoFlags
+00379 02D0 1DE0 		BTFSS	CMDServoIDX,3
+00380 02D1 1080 		BCF	INDF0,InPositionFlag0_7
+00381 02D2 19E0 		BTFSC	CMDServoIDX,3
+00382 02D3 1280 		BCF	INDF0,InPositionFlag8_15
+00383 02D4 	;
+00384 02D4 1FFD 		BTFSS	Param7D,7	;Cmd<Cur? Set if Cur>Cmd
+00385 02D5 2AFF 		GOTO	IdleServos_MovPlus	; Yes
+00386 02D6 	;Move minus
+00387 02D6 1DE0 		BTFSS	CMDServoIDX,3
+00388 02D7 1180 		BCF	INDF0,MovingFWD0_7
+00389 02D8 19E0 		BTFSC	CMDServoIDX,3
+00390 02D9 1380 		BCF	INDF0,MovingFWD8_15
+00391 02DA 	; Get Speed
+00392 02DA 2356 		CALL	GetSpeed
+00393 02DB 00F8 		MOVWF	Param78
+00394 02DC 0F7D 		INCFSZ	Param7D,W	;Dist=0xFFxx?
 SimpleServo16PS.asm                                                   Page: 23
 /Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
 
-00413 02EA 138B 	IdleServos_DisInt	bcf	INTCON,GIE
-00414 02EB 1B8B 		BTFSC	INTCON,GIE
-00415 02EC 2AEA 		GOTO	IdleServos_DisInt
-00416 02ED 	;
-00417 02ED 	;FSR1 = Current Position
-00418 02ED 0025 		MOVLB	0x05	;bank5
-00419 02EE 3560 		LSLF	CMDServoIDX,W
-00420 02EF 		LOADFSR1W	SigOutTime
-00420 02EF 3E90      M		addlw	low SigOutTime		addlw 	low ADDRESS
-00420 02F0 0086      M		movwf	FSR1L		movwf 	FSR1L
-00420 02F1 0187      M		clrf	FSR1H		clrf	FSR1H
-00420 02F2 3021      M		movlw	high SigOutTime		movlw	high ADDRESS
-00420 02F3 3D87      M		addwfc	FSR1H,F		addwfc	FSR1H,F	;<< needed to work w/ contig ram
-00421 02F4 	;
-00422 02F4 087C 		MOVF	Param7C,W	;SigOutTime
-00423 02F5 001E 		MOVWI	FSR1++
-00424 02F6 087D 		MOVF	Param7D,W
-00425 02F7 001E 		MOVWI	FSR1++
-00426 02F8 	;
-00427 02F8 178B 		bsf	INTCON,GIE
-00428 02F9 	;
-00429 02F9 2B19 		GOTO	IdleServos_Next
-00430 02FA 	;
-00431 02FA 	;=============================
-00432 02FA 	; 7D:7C = distance to go
-00433 02FA 	; FSR1=SigOutTime0_7 + Servo#x2
-00434 02FA 	; FSR0=ServoFlags + Servo# & 0x07
-00435 02FA 	;
-00436 02FA 1DE0 	IdleServos_MovPlus	BTFSS	CMDServoIDX,3
-00437 02FB 1580 		BSF	INDF0,MovingFWD0_7
-00438 02FC 19E0 		BTFSC	CMDServoIDX,3
-00439 02FD 1780 		BSF	INDF0,MovingFWD8_15
-00440 02FE 	; Get Speed
-00441 02FE 2351 		CALL	GetSpeed
-00442 02FF 00F8 		MOVWF	Param78
-00443 0300 08FD 		MOVF	Param7D,F
-00444 0301 		SKPZ		;>255 to go?
-00444 0301 1D03      M		BTFSS	STATUS,Z		BTFSS	STATUS,Z
-00445 0302 2B0C 		GOTO	IdleServos_Plus	; Yes
-00446 0303 0878 	IdleServos_L2	MOVF	Param78,W
-00447 0304 027C 		SUBWF	Param7C,W	;Dist-Speed
-00448 0305 		SKPB		;Speed>Dist?
-00448 0305 1803      M		BTFSC	STATUS,C		BTFSC	STATUS,C
-00449 0306 2B0C 		GOTO	IdleServos_Plus	; No
-00450 0307 0B78 		DECFSZ	Param78,W
-00451 0308 2B0A 		GOTO	IdleServos_IncAcc
-00452 0309 2B0C 		GOTO	IdleServos_Plus
-00453 030A 03F8 	IdleServos_IncAcc	DECF	Param78,F
-00454 030B 2B03 		GOTO	IdleServos_L2	
-00455 030C 	;
-00456 030C 0878 	IdleServos_Plus	MOVF	Param78,W	;7D:7C = CurPos + Speed
-00457 030D 0701 		ADDWF	INDF1,W	;SigOutTime
-00458 030E 00FC 		MOVWF	Param7C
-00459 030F 0A86 		INCF	FSR1L,F
-00460 0310 0103 		CLRW
-00461 0311 3D01 		ADDWFC	INDF1,W	;SigOutTimeH
-00462 0312 00FD 		MOVWF	Param7D
-00463 0313 2AE9 		GOTO	IdleServos_Clamp
-00464 0314 	;
-00465 0314 	;========================================
-00466 0314 	;
-00467 0314 2371 	IdleServos_InPos	CALL	SetFSR0ToServoFlags
-00468 0315 1DE0 		BTFSS	CMDServoIDX,3
-00469 0316 1480 		BSF	INDF0,InPositionFlag0_7
-00470 0317 19E0 		BTFSC	CMDServoIDX,3
-00471 0318 1680 		BSF	INDF0,InPositionFlag8_15
-00472 0319 	;	
-00473 0319 0A60 	IdleServos_Next	INCF	CMDServoIDX,W
-00474 031A 390F 		ANDLW	0x0F
-00475 031B 00E0 		MOVWF	CMDServoIDX
-00476 031C 0008 		RETURN
-00477 031D 	;
-00478 031D 	;=========================================================================================
-00479 031D 	;Do Accel
-00480 031D 	;
-00481 031D 	; Entry: Bank 5, CMDServoIDX
-00482 031D 	; Exit:
-00483 031D 	; Ram Used: Param78, Param79, FSR0
-00484 031D 	;
-00485 031D 2369 	IdleServos_Accel	CALL	SetFSR0ToServoFlags2
-00486 031E 19E0 		BTFSC	CMDServoIDX,3
-00487 031F 2B23 		GOTO	IdleServos_Accel_1
-00488 0320 	;
-00489 0320 1800 		BTFSC	INDF0,AccelComplete0_7	;Done with accel?
-00490 0321 0008 		RETURN		; Yes
-00491 0322 2B25 		GOTO	IdleServos_Accel_2
-00492 0323 	;
-00493 0323 1A00 	IdleServos_Accel_1	BTFSC	INDF0,AccelComplete8_15	;Done with accel?
-00494 0324 0008 		RETURN		; Yes
-00495 0325 	;
-00496 0325 2351 	IdleServos_Accel_2	CALL	GetSpeed
-00497 0326 00F8 		MOVWF	Param78	;Save Cur Speed in 78
-00498 0327 2359 		CALL	GetMaxSpeed
-00499 0328 00F9 		MOVWF	Param79	;Save Max Speed in 79
-00500 0329 0278 		SUBWF	Param78,W	;W=CurSpd-MaxSpd
-00501 032A 1903 		BTFSC	_Z	;Max=CurSpd?
-00502 032B 2B42 		GOTO	AccelDone	; Yes
-00503 032C 		SKPB		;Max>CurSpd?
-00503 032C 1803      M		BTFSC	STATUS,C		BTFSC	STATUS,C
+00395 02DD 2AE7 		GOTO	IdleServos_Minus	; No
+00396 02DE 0878 	IdleServos_L1	MOVF	Param78,W
+00397 02DF 077C 		ADDWF	Param7C,W
+00398 02E0 1C03 		BTFSS	_C	;Dist<Param78?
+00399 02E1 2AE7 		GOTO	IdleServos_Minus	; No
+00400 02E2 0B78 		DECFSZ	Param78,W	;Speed>1?
+00401 02E3 2AE5 		GOTO	IdleServos_DecAcc	; Yes
+00402 02E4 2AE7 		GOTO	IdleServos_Minus
+00403 02E5 03F8 	IdleServos_DecAcc	DECF	Param78,F
+00404 02E6 2ADE 		GOTO	IdleServos_L1	
+00405 02E7 	;
+00406 02E7 	; Subtract speed from current position
+00407 02E7 0878 	IdleServos_Minus	MOVF	Param78,W
+00408 02E8 0201 		SUBWF	INDF1,W	;SigOutTime
+00409 02E9 00FC 		MOVWF	Param7C
+00410 02EA 0A86 		INCF	FSR1L,F
+00411 02EB 3000 		MOVLW	0x00
+00412 02EC 3B01 		SUBWFB	INDF1,W	;SigOutTimeH
+00413 02ED 00FD 		MOVWF	Param7D
+00414 02EE 	;
+00415 02EE 	;FSR1 = SigOutTime0_7+1 + Servo# x 2
+00416 02EE 3560 	IdleServos_Clamp	LSLF	CMDServoIDX,W	
+00417 02EF 	;	CALL	ClampMinMax
+00418 02EF 	;
+00419 02EF 138B 	IdleServos_DisInt	bcf	INTCON,GIE
+00420 02F0 1B8B 		BTFSC	INTCON,GIE
+00421 02F1 2AEF 		GOTO	IdleServos_DisInt
+00422 02F2 	;
+00423 02F2 	;FSR1 = Current Position
+00424 02F2 0025 		MOVLB	0x05	;bank5
+00425 02F3 3560 		LSLF	CMDServoIDX,W
+00426 02F4 		LOADFSR1W	SigOutTime
+00426 02F4 3E90      M		addlw	low SigOutTime		addlw 	low ADDRESS
+00426 02F5 0086      M		movwf	FSR1L		movwf 	FSR1L
+00426 02F6 0187      M		clrf	FSR1H		clrf	FSR1H
+00426 02F7 3021      M		movlw	high SigOutTime		movlw	high ADDRESS
+00426 02F8 3D87      M		addwfc	FSR1H,F		addwfc	FSR1H,F	;<< needed to work w/ contig ram
+00427 02F9 	;
+00428 02F9 087C 		MOVF	Param7C,W	;SigOutTime
+00429 02FA 001E 		MOVWI	FSR1++
+00430 02FB 087D 		MOVF	Param7D,W
+00431 02FC 001E 		MOVWI	FSR1++
+00432 02FD 	;
+00433 02FD 178B 		bsf	INTCON,GIE
+00434 02FE 	;
+00435 02FE 2B1E 		GOTO	IdleServos_Next
+00436 02FF 	;
+00437 02FF 	;=============================
+00438 02FF 	; 7D:7C = distance to go
+00439 02FF 	; FSR1=SigOutTime0_7 + Servo#x2
+00440 02FF 	; FSR0=ServoFlags + Servo# & 0x07
+00441 02FF 	;
+00442 02FF 1DE0 	IdleServos_MovPlus	BTFSS	CMDServoIDX,3
+00443 0300 1580 		BSF	INDF0,MovingFWD0_7
+00444 0301 19E0 		BTFSC	CMDServoIDX,3
+00445 0302 1780 		BSF	INDF0,MovingFWD8_15
+00446 0303 	; Get Speed
+00447 0303 2356 		CALL	GetSpeed
+00448 0304 00F8 		MOVWF	Param78
+00449 0305 08FD 		MOVF	Param7D,F
+00450 0306 		SKPZ		;>255 to go?
+00450 0306 1D03      M		BTFSS	STATUS,Z		BTFSS	STATUS,Z
+00451 0307 2B11 		GOTO	IdleServos_Plus	; Yes
+00452 0308 0878 	IdleServos_L2	MOVF	Param78,W
+00453 0309 027C 		SUBWF	Param7C,W	;Dist-Speed
+00454 030A 		SKPB		;Speed>Dist?
+00454 030A 1803      M		BTFSC	STATUS,C		BTFSC	STATUS,C
+00455 030B 2B11 		GOTO	IdleServos_Plus	; No
+00456 030C 0B78 		DECFSZ	Param78,W
+00457 030D 2B0F 		GOTO	IdleServos_IncAcc
+00458 030E 2B11 		GOTO	IdleServos_Plus
+00459 030F 03F8 	IdleServos_IncAcc	DECF	Param78,F
+00460 0310 2B08 		GOTO	IdleServos_L2	
+00461 0311 	;
+00462 0311 0878 	IdleServos_Plus	MOVF	Param78,W	;7D:7C = CurPos + Speed
+00463 0312 0701 		ADDWF	INDF1,W	;SigOutTime
+00464 0313 00FC 		MOVWF	Param7C
+00465 0314 0A86 		INCF	FSR1L,F
+00466 0315 0103 		CLRW
+00467 0316 3D01 		ADDWFC	INDF1,W	;SigOutTimeH
+00468 0317 00FD 		MOVWF	Param7D
+00469 0318 2AEE 		GOTO	IdleServos_Clamp
+00470 0319 	;
+00471 0319 	;========================================
+00472 0319 	;
+00473 0319 2376 	IdleServos_InPos	CALL	SetFSR0ToServoFlags
+00474 031A 1DE0 		BTFSS	CMDServoIDX,3
+00475 031B 1480 		BSF	INDF0,InPositionFlag0_7
+00476 031C 19E0 		BTFSC	CMDServoIDX,3
+00477 031D 1680 		BSF	INDF0,InPositionFlag8_15
+00478 031E 	;	
+00479 031E 0A60 	IdleServos_Next	INCF	CMDServoIDX,W
+00480 031F 390F 		ANDLW	0x0F
+00481 0320 00E0 		MOVWF	CMDServoIDX
+00482 0321 0008 		RETURN
+00483 0322 	;
+00484 0322 	;=========================================================================================
+00485 0322 	;Do Accel
+00486 0322 	;
 SimpleServo16PS.asm                                                   Page: 24
 /Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
 
-00504 032D 2B42 		GOTO	AccelDone	; No
-00505 032E 2361 		CALL	GetAccelValue
-00506 032F 07F8 		ADDWF	Param78,F	;CurSpd=CurSpd+Accel
-00507 0330 0878 		MOVF	Param78,W	;new CurSpd
-00508 0331 0279 		SUBWF	Param79,W	;Max-new Cur
-00509 0332 0878 		MOVF	Param78,W	;new Cur
-00510 0333 		SKPB		;new Cur>Max?
-00510 0333 1803      M		BTFSC	STATUS,C		BTFSC	STATUS,C
-00511 0334 0879 		MOVF	Param79,W	; Yes, use max instead
-00512 0335 00F8 		MOVWF	Param78	;New Speed
-00513 0336 	;FSR0 = CMDServoIDX*2 + AccelRampLen
-00514 0336 3560 		LSLF	CMDServoIDX,W	
-00515 0337 		LOADFSR0W	AccelRampLen
-00515 0337 3EE0      M		addlw	low AccelRampLen		addlw 	low ADDRESS
-00515 0338 0084      M		movwf	FSR0L		movwf 	FSR0L
-00515 0339 0185      M		clrf	FSR0H		clrf	FSR0H
-00515 033A 3021      M		movlw	high AccelRampLen		movlw	high ADDRESS
-00515 033B 3D85      M		addwfc	FSR0H,F		addwfc	FSR0H,F	;<< needed to work w/ contig ram
-00516 033C 0878 		MOVF	Param78,W
-00517 033D 0780 		ADDWF	INDF0,F
-00518 033E 3101 		addfsr	FSR0,1
-00519 033F 0103 		CLRW
-00520 0340 3D80 		ADDWFC	INDF0,F
-00521 0341 2B48 		GOTO	SaveSpeed
-00522 0342 	;
-00523 0342 	;========================================
-00524 0342 	; Set AccelComplete flag for servo (CMDServoIDX)
-00525 0342 	;
-00526 0342 	; Entry: Bank 5
-00527 0342 	; Exit: FSR0 >> ServoFlags2
-00528 0342 	;
-00529 0342 2369 	AccelDone	CALL	SetFSR0ToServoFlags2
-00530 0343 1DE0 		BTFSS	CMDServoIDX,3
-00531 0344 1400 		BSF	INDF0,AccelComplete0_7
-00532 0345 19E0 		BTFSC	CMDServoIDX,3
-00533 0346 1600 		BSF	INDF0,AccelComplete8_15
-00534 0347 0008 		RETURN
-00535 0348 	;
-00536 0348 	;==========================================
-00537 0348 	; Save speed Param78 to ServoCurSpeed for servo (CMDServoIDX)
-00538 0348 	;
-00539 0348 	; Entry: Bank 5, Param78 = Speed
-00540 0348 	; Exit: FSR0 >> ServoCurSpeed
-00541 0348 	;
-00542 0348 0860 	SaveSpeed	MOVF	CMDServoIDX,W
-00543 0349 		LOADFSR0W	ServoCurSpeed
-00543 0349 3E10      M		addlw	low ServoCurSpeed		addlw 	low ADDRESS
-00543 034A 0084      M		movwf	FSR0L		movwf 	FSR0L
-00543 034B 0185      M		clrf	FSR0H		clrf	FSR0H
-00543 034C 3021      M		movlw	high ServoCurSpeed		movlw	high ADDRESS
-00543 034D 3D85      M		addwfc	FSR0H,F		addwfc	FSR0H,F	;<< needed to work w/ contig ram
-00544 034E 0878 		MOVF	Param78,W
-00545 034F 0080 		MOVWF	INDF0
-00546 0350 0008 		RETURN
-00547 0351 	;
-00548 0351 	;==========================================
-00549 0351 	; Get ServoCurSpeed for servo (CMDServoIDX)
-00550 0351 	;
-00551 0351 	; Entry: Bank 5
-00552 0351 	; Exit: FSR0 >> ServoCurSpeed, W=ServoCurSpeed
-00553 0351 	;
-00554 0351 0860 	GetSpeed	MOVF	CMDServoIDX,W
-00555 0352 		LOADFSR0W	ServoCurSpeed
-00555 0352 3E10      M		addlw	low ServoCurSpeed		addlw 	low ADDRESS
-00555 0353 0084      M		movwf	FSR0L		movwf 	FSR0L
-00555 0354 0185      M		clrf	FSR0H		clrf	FSR0H
-00555 0355 3021      M		movlw	high ServoCurSpeed		movlw	high ADDRESS
-00555 0356 3D85      M		addwfc	FSR0H,F		addwfc	FSR0H,F	;<< needed to work w/ contig ram
-00556 0357 0800 		MOVF	INDF0,W
-00557 0358 0008 		RETURN
-00558 0359 	;
-00559 0359 	;==========================================
-00560 0359 	; Get ServoMaxSpeed for servo (CMDServoIDX)
-00561 0359 	;
-00562 0359 	; Entry: Bank 5
-00563 0359 	; Exit: FSR0 >> ServoMaxSpeed, W=ServoMaxSpeed
-00564 0359 	;
-00565 0359 0860 	GetMaxSpeed	MOVF	CMDServoIDX,W
-00566 035A 		LOADFSR0W	ServoMaxSpeed
-00566 035A 3EF0      M		addlw	low ServoMaxSpeed		addlw 	low ADDRESS
-00566 035B 0084      M		movwf	FSR0L		movwf 	FSR0L
-00566 035C 0185      M		clrf	FSR0H		clrf	FSR0H
-00566 035D 3020      M		movlw	high ServoMaxSpeed		movlw	high ADDRESS
-00566 035E 3D85      M		addwfc	FSR0H,F		addwfc	FSR0H,F	;<< needed to work w/ contig ram
-00567 035F 0800 		MOVF	INDF0,W
-00568 0360 0008 		RETURN
-00569 0361 	;
-00570 0361 	;==========================================
-00571 0361 	; Get ServoAccelValue for servo (CMDServoIDX)
-00572 0361 	;
-00573 0361 	; Entry: Bank 5
-00574 0361 	; Exit: FSR0 >> ServoAccelValue, W=ServoAccelValue
-00575 0361 	;
-00576 0361 0860 	GetAccelValue	MOVF	CMDServoIDX,W
-00577 0362 		LOADFSR0W	ServoAccelValue
-00577 0362 3E00      M		addlw	low ServoAccelValue		addlw 	low ADDRESS
-00577 0363 0084      M		movwf	FSR0L		movwf 	FSR0L
-00577 0364 0185      M		clrf	FSR0H		clrf	FSR0H
-00577 0365 3021      M		movlw	high ServoAccelValue		movlw	high ADDRESS
+00487 0322 	; Entry: Bank 5, CMDServoIDX
+00488 0322 	; Exit:
+00489 0322 	; Ram Used: Param78, Param79, FSR0
+00490 0322 	;
+00491 0322 236E 	IdleServos_Accel	CALL	SetFSR0ToServoFlags2
+00492 0323 19E0 		BTFSC	CMDServoIDX,3
+00493 0324 2B28 		GOTO	IdleServos_Accel_1
+00494 0325 	;
+00495 0325 1800 		BTFSC	INDF0,AccelComplete0_7	;Done with accel?
+00496 0326 0008 		RETURN		; Yes
+00497 0327 2B2A 		GOTO	IdleServos_Accel_2
+00498 0328 	;
+00499 0328 1A00 	IdleServos_Accel_1	BTFSC	INDF0,AccelComplete8_15	;Done with accel?
+00500 0329 0008 		RETURN		; Yes
+00501 032A 	;
+00502 032A 2356 	IdleServos_Accel_2	CALL	GetSpeed
+00503 032B 00F8 		MOVWF	Param78	;Save Cur Speed in 78
+00504 032C 235E 		CALL	GetMaxSpeed
+00505 032D 00F9 		MOVWF	Param79	;Save Max Speed in 79
+00506 032E 0278 		SUBWF	Param78,W	;W=CurSpd-MaxSpd
+00507 032F 1903 		BTFSC	_Z	;Max=CurSpd?
+00508 0330 2B47 		GOTO	AccelDone	; Yes
+00509 0331 		SKPB		;Max>CurSpd?
+00509 0331 1803      M		BTFSC	STATUS,C		BTFSC	STATUS,C
+00510 0332 2B47 		GOTO	AccelDone	; No
+00511 0333 2366 		CALL	GetAccelValue
+00512 0334 07F8 		ADDWF	Param78,F	;CurSpd=CurSpd+Accel
+00513 0335 0878 		MOVF	Param78,W	;new CurSpd
+00514 0336 0279 		SUBWF	Param79,W	;Max-new Cur
+00515 0337 0878 		MOVF	Param78,W	;new Cur
+00516 0338 		SKPB		;new Cur>Max?
+00516 0338 1803      M		BTFSC	STATUS,C		BTFSC	STATUS,C
+00517 0339 0879 		MOVF	Param79,W	; Yes, use max instead
+00518 033A 00F8 		MOVWF	Param78	;New Speed
+00519 033B 	;FSR0 = CMDServoIDX*2 + AccelRampLen
+00520 033B 3560 		LSLF	CMDServoIDX,W	
+00521 033C 		LOADFSR0W	AccelRampLen
+00521 033C 3EE0      M		addlw	low AccelRampLen		addlw 	low ADDRESS
+00521 033D 0084      M		movwf	FSR0L		movwf 	FSR0L
+00521 033E 0185      M		clrf	FSR0H		clrf	FSR0H
+00521 033F 3021      M		movlw	high AccelRampLen		movlw	high ADDRESS
+00521 0340 3D85      M		addwfc	FSR0H,F		addwfc	FSR0H,F	;<< needed to work w/ contig ram
+00522 0341 0878 		MOVF	Param78,W
+00523 0342 0780 		ADDWF	INDF0,F
+00524 0343 3101 		addfsr	FSR0,1
+00525 0344 0103 		CLRW
+00526 0345 3D80 		ADDWFC	INDF0,F
+00527 0346 2B4D 		GOTO	SaveSpeed
+00528 0347 	;
+00529 0347 	;========================================
+00530 0347 	; Set AccelComplete flag for servo (CMDServoIDX)
+00531 0347 	;
+00532 0347 	; Entry: Bank 5
+00533 0347 	; Exit: FSR0 >> ServoFlags2
+00534 0347 	;
+00535 0347 236E 	AccelDone	CALL	SetFSR0ToServoFlags2
+00536 0348 1DE0 		BTFSS	CMDServoIDX,3
+00537 0349 1400 		BSF	INDF0,AccelComplete0_7
+00538 034A 19E0 		BTFSC	CMDServoIDX,3
+00539 034B 1600 		BSF	INDF0,AccelComplete8_15
+00540 034C 0008 		RETURN
+00541 034D 	;
+00542 034D 	;==========================================
+00543 034D 	; Save speed Param78 to ServoCurSpeed for servo (CMDServoIDX)
+00544 034D 	;
+00545 034D 	; Entry: Bank 5, Param78 = Speed
+00546 034D 	; Exit: FSR0 >> ServoCurSpeed
+00547 034D 	;
+00548 034D 0860 	SaveSpeed	MOVF	CMDServoIDX,W
+00549 034E 		LOADFSR0W	ServoCurSpeed
+00549 034E 3E10      M		addlw	low ServoCurSpeed		addlw 	low ADDRESS
+00549 034F 0084      M		movwf	FSR0L		movwf 	FSR0L
+00549 0350 0185      M		clrf	FSR0H		clrf	FSR0H
+00549 0351 3021      M		movlw	high ServoCurSpeed		movlw	high ADDRESS
+00549 0352 3D85      M		addwfc	FSR0H,F		addwfc	FSR0H,F	;<< needed to work w/ contig ram
+00550 0353 0878 		MOVF	Param78,W
+00551 0354 0080 		MOVWF	INDF0
+00552 0355 0008 		RETURN
+00553 0356 	;
+00554 0356 	;==========================================
+00555 0356 	; Get ServoCurSpeed for servo (CMDServoIDX)
+00556 0356 	;
+00557 0356 	; Entry: Bank 5
+00558 0356 	; Exit: FSR0 >> ServoCurSpeed, W=ServoCurSpeed
+00559 0356 	;
+00560 0356 0860 	GetSpeed	MOVF	CMDServoIDX,W
+00561 0357 		LOADFSR0W	ServoCurSpeed
+00561 0357 3E10      M		addlw	low ServoCurSpeed		addlw 	low ADDRESS
+00561 0358 0084      M		movwf	FSR0L		movwf 	FSR0L
+00561 0359 0185      M		clrf	FSR0H		clrf	FSR0H
+00561 035A 3021      M		movlw	high ServoCurSpeed		movlw	high ADDRESS
+00561 035B 3D85      M		addwfc	FSR0H,F		addwfc	FSR0H,F	;<< needed to work w/ contig ram
+00562 035C 0800 		MOVF	INDF0,W
+00563 035D 0008 		RETURN
+00564 035E 	;
+00565 035E 	;==========================================
+00566 035E 	; Get ServoMaxSpeed for servo (CMDServoIDX)
+00567 035E 	;
+00568 035E 	; Entry: Bank 5
 SimpleServo16PS.asm                                                   Page: 25
 /Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
 
-00577 0366 3D85      M		addwfc	FSR0H,F		addwfc	FSR0H,F	;<< needed to work w/ contig ram
-00578 0367 0800 		MOVF	INDF0,W
-00579 0368 0008 		RETURN
-00580 0369 	;
-00581 0369 	;=========================================================================================
-00582 0369 	; Point FRS0 at ServoFlags2
-00583 0369 	;
-00584 0369 	; Entry: Bank 5
-00585 0369 	; Exit: FSR0 >> ServoFlags2
-00586 0369 	;
-00587 0369 0860 	SetFSR0ToServoFlags2	MOVF	CMDServoIDX,W
-00588 036A 3907 		ANDLW	0x07
-00589 036B 		LOADFSR0W	ServoFlags2
-00589 036B 3E88      M		addlw	low ServoFlags2		addlw 	low ADDRESS
-00589 036C 0084      M		movwf	FSR0L		movwf 	FSR0L
-00589 036D 0185      M		clrf	FSR0H		clrf	FSR0H
-00589 036E 3021      M		movlw	high ServoFlags2		movlw	high ADDRESS
-00589 036F 3D85      M		addwfc	FSR0H,F		addwfc	FSR0H,F	;<< needed to work w/ contig ram
-00590 0370 0008 		RETURN
-00591 0371 	;
-00592 0371 	;=========================================================================================
-00593 0371 	; Point FRS0 at ServoFlags
-00594 0371 	;
-00595 0371 	; Entry: Bank 5
-00596 0371 	; Exit: FSR0 >> ServoFlags
-00597 0371 	;
-00598 0371 	;
-00599 0371 0860 	SetFSR0ToServoFlags	MOVF	CMDServoIDX,W
-00600 0372 3907 		ANDLW	0x07
-00601 0373 		LOADFSR0W	ServoFlags
-00601 0373 3E80      M		addlw	low ServoFlags		addlw 	low ADDRESS
-00601 0374 0084      M		movwf	FSR0L		movwf 	FSR0L
-00601 0375 0185      M		clrf	FSR0H		clrf	FSR0H
-00601 0376 3021      M		movlw	high ServoFlags		movlw	high ADDRESS
-00601 0377 3D85      M		addwfc	FSR0H,F		addwfc	FSR0H,F	;<< needed to work w/ contig ram
-00602 0378 0008 		RETURN
-00603 0379 	;
-00604 0379 	;=========================================================================================
-00605 0379 	; Set CCP1/2 to cause an interrupt the next time T1 matches CCPRn
-00606 0379 	; Call Once to activate servos
-00607 0379 	;
-00608 0379 0022 	StartServos	MOVLB	0x02	;Bank 2, LATA
-00609 037A 118C 		BCF	Enable0_7	; Active Low Output
-00610 037B 120C 		BCF	Enable8_15
-00611 037C 0025 		MOVLB	0x05
-00612 037D 0191 		CLRF	CCPR1L
-00613 037E 0192 		CLRF	CCPR1H
-00614 037F 0198 		CLRF	CCPR2L
-00615 0380 0199 		CLRF	CCPR2H
-00616 0381 300A 		MOVLW	CCPCON_Int	;interrupt on match
-00617 0382 0093 		MOVWF	CCP1CON
-00618 0383 009A 		MOVWF	CCP2CON
-00619 0384 1462 		BSF	ServoCtlFlags,CyclePulseStart
-00620 0385 0021 		MOVLB	0x01	;Bank 1
-00621 0386 1511 		BSF	PIE1,CCP1IE
-00622 0387 1412 		BSF	PIE2,CCP2IE
-00623 0388 0020 		MOVLB	0x00	;Bank 0
-00624 0389 0008 		RETURN
-00625 038A 	;
-00626 038A 	;=========================================================================================
-00627 038A 	; Setup all data to usable values
-00628 038A 	; Call once before mainloop begins
-00629 038A 	;
-00630 038A 	; RAM Used:Param78, Param79, Param7A, FSR0
-00631 038A 	;
-00632 038A 	;
-00633 038A 0103 	ServoInit16	CLRW
-00634 038B 		LOADFSR0W	ServoMaxSpeed
-00634 038B 3EF0      M		addlw	low ServoMaxSpeed		addlw 	low ADDRESS
-00634 038C 0084      M		movwf	FSR0L		movwf 	FSR0L
-00634 038D 0185      M		clrf	FSR0H		clrf	FSR0H
-00634 038E 3020      M		movlw	high ServoMaxSpeed		movlw	high ADDRESS
-00634 038F 3D85      M		addwfc	FSR0H,F		addwfc	FSR0H,F	;<< needed to work w/ contig ram
-00635 0390 	;ServoMaxSpeed 0..15, ServoMaxSpeed
-00636 0390 3030 		MOVLW	DefaultMaxSpeed
-00637 0391 23C2 		CALL	Store16Times
-00638 0392 	;ServoAccelValue 0..15, ServoAccelValue
-00639 0392 3001 		MOVLW	DefaultAccel
-00640 0393 23C2 		CALL	Store16Times
-00641 0394 	;ServoCurSpeed 0..15, ServoCurSpeed
-00642 0394 3001 		MOVLW	0x01
-00643 0395 23C2 		CALL	Store16Times	;CurSpeed=min
-00644 0396 	;
-00645 0396 	; Set Command position to center, CMDSigTime
-00646 0396 30B8 		MOVLW	LOW kCenterPulseWidth
-00647 0397 00F8 		MOVWF	Param78
-00648 0398 300B 		MOVLW	HIGH kCenterPulseWidth
-00649 0399 00F9 		MOVWF	Param79
-00650 039A 23B9 		CALL	StoreWord16Times
-00651 039B 	;
-00652 039B 	; Set minimum time, MinTime
-00653 039B 3008 		MOVLW	LOW kMinPulseWidth
-00654 039C 00F8 		MOVWF	Param78
-00655 039D 3007 		MOVLW	HIGH kMinPulseWidth
-00656 039E 00F9 		MOVWF	Param79
-00657 039F 23B9 		CALL	StoreWord16Times
-00658 03A0 	;
-00659 03A0 	;MaxTime 0..15
-00660 03A0 3068 		MOVLW	LOW kMaxPulseWidth
+00569 035E 	; Exit: FSR0 >> ServoMaxSpeed, W=ServoMaxSpeed
+00570 035E 	;
+00571 035E 0860 	GetMaxSpeed	MOVF	CMDServoIDX,W
+00572 035F 		LOADFSR0W	ServoMaxSpeed
+00572 035F 3EF0      M		addlw	low ServoMaxSpeed		addlw 	low ADDRESS
+00572 0360 0084      M		movwf	FSR0L		movwf 	FSR0L
+00572 0361 0185      M		clrf	FSR0H		clrf	FSR0H
+00572 0362 3020      M		movlw	high ServoMaxSpeed		movlw	high ADDRESS
+00572 0363 3D85      M		addwfc	FSR0H,F		addwfc	FSR0H,F	;<< needed to work w/ contig ram
+00573 0364 0800 		MOVF	INDF0,W
+00574 0365 0008 		RETURN
+00575 0366 	;
+00576 0366 	;==========================================
+00577 0366 	; Get ServoAccelValue for servo (CMDServoIDX)
+00578 0366 	;
+00579 0366 	; Entry: Bank 5
+00580 0366 	; Exit: FSR0 >> ServoAccelValue, W=ServoAccelValue
+00581 0366 	;
+00582 0366 0860 	GetAccelValue	MOVF	CMDServoIDX,W
+00583 0367 		LOADFSR0W	ServoAccelValue
+00583 0367 3E00      M		addlw	low ServoAccelValue		addlw 	low ADDRESS
+00583 0368 0084      M		movwf	FSR0L		movwf 	FSR0L
+00583 0369 0185      M		clrf	FSR0H		clrf	FSR0H
+00583 036A 3021      M		movlw	high ServoAccelValue		movlw	high ADDRESS
+00583 036B 3D85      M		addwfc	FSR0H,F		addwfc	FSR0H,F	;<< needed to work w/ contig ram
+00584 036C 0800 		MOVF	INDF0,W
+00585 036D 0008 		RETURN
+00586 036E 	;
+00587 036E 	;=========================================================================================
+00588 036E 	; Point FRS0 at ServoFlags2
+00589 036E 	;
+00590 036E 	; Entry: Bank 5
+00591 036E 	; Exit: FSR0 >> ServoFlags2
+00592 036E 	;
+00593 036E 0860 	SetFSR0ToServoFlags2	MOVF	CMDServoIDX,W
+00594 036F 3907 		ANDLW	0x07
+00595 0370 		LOADFSR0W	ServoFlags2
+00595 0370 3E88      M		addlw	low ServoFlags2		addlw 	low ADDRESS
+00595 0371 0084      M		movwf	FSR0L		movwf 	FSR0L
+00595 0372 0185      M		clrf	FSR0H		clrf	FSR0H
+00595 0373 3021      M		movlw	high ServoFlags2		movlw	high ADDRESS
+00595 0374 3D85      M		addwfc	FSR0H,F		addwfc	FSR0H,F	;<< needed to work w/ contig ram
+00596 0375 0008 		RETURN
+00597 0376 	;
+00598 0376 	;=========================================================================================
+00599 0376 	; Point FRS0 at ServoFlags
+00600 0376 	;
+00601 0376 	; Entry: Bank 5
+00602 0376 	; Exit: FSR0 >> ServoFlags
+00603 0376 	;
+00604 0376 	;
+00605 0376 0860 	SetFSR0ToServoFlags	MOVF	CMDServoIDX,W
+00606 0377 3907 		ANDLW	0x07
+00607 0378 		LOADFSR0W	ServoFlags
+00607 0378 3E80      M		addlw	low ServoFlags		addlw 	low ADDRESS
+00607 0379 0084      M		movwf	FSR0L		movwf 	FSR0L
+00607 037A 0185      M		clrf	FSR0H		clrf	FSR0H
+00607 037B 3021      M		movlw	high ServoFlags		movlw	high ADDRESS
+00607 037C 3D85      M		addwfc	FSR0H,F		addwfc	FSR0H,F	;<< needed to work w/ contig ram
+00608 037D 0008 		RETURN
+00609 037E 	;
+00610 037E 	;=========================================================================================
+00611 037E 	; Set CCP1/2 to cause an interrupt the next time T1 matches CCPRn
+00612 037E 	; Call Once to activate servos
+00613 037E 	;
+00614 037E 0022 	StartServos	MOVLB	0x02	;Bank 2, LATA
+00615 037F 118C 		BCF	Enable0_7	; Active Low Output
+00616 0380 120C 		BCF	Enable8_15
+00617 0381 0025 		MOVLB	0x05
+00618 0382 0191 		CLRF	CCPR1L
+00619 0383 0192 		CLRF	CCPR1H
+00620 0384 0198 		CLRF	CCPR2L
+00621 0385 0199 		CLRF	CCPR2H
+00622 0386 300A 		MOVLW	CCPCON_Int	;interrupt on match
+00623 0387 0093 		MOVWF	CCP1CON
+00624 0388 009A 		MOVWF	CCP2CON
+00625 0389 1462 		BSF	ServoCtlFlags,CyclePulseStart
+00626 038A 0021 		MOVLB	0x01	;Bank 1
+00627 038B 1511 		BSF	PIE1,CCP1IE
+00628 038C 1412 		BSF	PIE2,CCP2IE
+00629 038D 0020 		MOVLB	0x00	;Bank 0
+00630 038E 0008 		RETURN
+00631 038F 	;
+00632 038F 	;=========================================================================================
+00633 038F 	; Setup all data to usable values
+00634 038F 	; Call once before mainloop begins
+00635 038F 	;
+00636 038F 	; RAM Used:Param78, Param79, Param7A, FSR0
+00637 038F 	;
+00638 038F 	;
+00639 038F 0103 	ServoInit16	CLRW
+00640 0390 		LOADFSR0W	ServoMaxSpeed
+00640 0390 3EF0      M		addlw	low ServoMaxSpeed		addlw 	low ADDRESS
+00640 0391 0084      M		movwf	FSR0L		movwf 	FSR0L
+00640 0392 0185      M		clrf	FSR0H		clrf	FSR0H
+00640 0393 3020      M		movlw	high ServoMaxSpeed		movlw	high ADDRESS
+00640 0394 3D85      M		addwfc	FSR0H,F		addwfc	FSR0H,F	;<< needed to work w/ contig ram
+00641 0395 	;ServoMaxSpeed 0..15, ServoMaxSpeed
+00642 0395 3030 		MOVLW	DefaultMaxSpeed
 SimpleServo16PS.asm                                                   Page: 26
 /Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
 
-00661 03A1 00F8 		MOVWF	Param78
-00662 03A2 3010 		MOVLW	HIGH kMaxPulseWidth
-00663 03A3 00F9 		MOVWF	Param79
-00664 03A4 23B9 		CALL	StoreWord16Times
-00665 03A5 	; Set ServoFlags
-00666 03A5 	;
-00667 03A5 3022 		MOVLW	DefaultSFlags
-00668 03A6 23CA 		CALL	Store8Times
-00669 03A7 	;
-00670 03A7 	; Set current position to center 
-00671 03A7 0103 		CLRW
-00672 03A8 		LOADFSR0W	SigOutTime
-00672 03A8 3E90      M		addlw	low SigOutTime		addlw 	low ADDRESS
-00672 03A9 0084      M		movwf	FSR0L		movwf 	FSR0L
-00672 03AA 0185      M		clrf	FSR0H		clrf	FSR0H
-00672 03AB 3021      M		movlw	high SigOutTime		movlw	high ADDRESS
-00672 03AC 3D85      M		addwfc	FSR0H,F		addwfc	FSR0H,F	;<< needed to work w/ contig ram
-00673 03AD 	; SigOutTime 0..15
-00674 03AD 30B8 		MOVLW	LOW kCenterPulseWidth
-00675 03AE 00F8 		MOVWF	Param78
-00676 03AF 300B 		MOVLW	HIGH kCenterPulseWidth
-00677 03B0 00F9 		MOVWF	Param79
-00678 03B1 23B9 		CALL	StoreWord16Times
-00679 03B2 	; DwellTime 0..15
-00680 03B2 3088 		MOVLW	LOW kServoDwellTime
+00643 0396 23C7 		CALL	Store16Times
+00644 0397 	;ServoAccelValue 0..15, ServoAccelValue
+00645 0397 3001 		MOVLW	DefaultAccel
+00646 0398 23C7 		CALL	Store16Times
+00647 0399 	;ServoCurSpeed 0..15, ServoCurSpeed
+00648 0399 3001 		MOVLW	0x01
+00649 039A 23C7 		CALL	Store16Times	;CurSpeed=min
+00650 039B 	;
+00651 039B 	; Set Command position to center, CMDSigTime
+00652 039B 30B8 		MOVLW	LOW kCenterPulseWidth
+00653 039C 00F8 		MOVWF	Param78
+00654 039D 300B 		MOVLW	HIGH kCenterPulseWidth
+00655 039E 00F9 		MOVWF	Param79
+00656 039F 23BE 		CALL	StoreWord16Times
+00657 03A0 	;
+00658 03A0 	; Set minimum time, MinTime
+00659 03A0 3008 		MOVLW	LOW kMinPulseWidth
+00660 03A1 00F8 		MOVWF	Param78
+00661 03A2 3007 		MOVLW	HIGH kMinPulseWidth
+00662 03A3 00F9 		MOVWF	Param79
+00663 03A4 23BE 		CALL	StoreWord16Times
+00664 03A5 	;
+00665 03A5 	;MaxTime 0..15
+00666 03A5 3068 		MOVLW	LOW kMaxPulseWidth
+00667 03A6 00F8 		MOVWF	Param78
+00668 03A7 3010 		MOVLW	HIGH kMaxPulseWidth
+00669 03A8 00F9 		MOVWF	Param79
+00670 03A9 23BE 		CALL	StoreWord16Times
+00671 03AA 	; Set ServoFlags
+00672 03AA 	;
+00673 03AA 3022 		MOVLW	DefaultSFlags
+00674 03AB 23CF 		CALL	Store8Times
+00675 03AC 	;
+00676 03AC 	; Set current position to center 
+00677 03AC 0103 		CLRW
+00678 03AD 		LOADFSR0W	SigOutTime
+00678 03AD 3E90      M		addlw	low SigOutTime		addlw 	low ADDRESS
+00678 03AE 0084      M		movwf	FSR0L		movwf 	FSR0L
+00678 03AF 0185      M		clrf	FSR0H		clrf	FSR0H
+00678 03B0 3021      M		movlw	high SigOutTime		movlw	high ADDRESS
+00678 03B1 3D85      M		addwfc	FSR0H,F		addwfc	FSR0H,F	;<< needed to work w/ contig ram
+00679 03B2 	; SigOutTime 0..15
+00680 03B2 30B8 		MOVLW	LOW kCenterPulseWidth
 00681 03B3 00F8 		MOVWF	Param78
-00682 03B4 3013 		MOVLW	HIGH kServoDwellTime
+00682 03B4 300B 		MOVLW	HIGH kCenterPulseWidth
 00683 03B5 00F9 		MOVWF	Param79
-00684 03B6 23B9 		call	StoreWord16Times
-00685 03B7 23CD 		call	EEPromToServoParams
-00686 03B8 322A 		bra	EEPromToSequencer
-00687 03B9 	;
-00688 03B9 3010 	StoreWord16Times	MOVLW	.16
-00689 03BA 00FA 		MOVWF	Param7A
-00690 03BB 0878 	StoreWord16Times_L1	MOVF	Param78,W
-00691 03BC 001A 		MOVWI	FSR0++
-00692 03BD 0879 		MOVF	Param79,W
-00693 03BE 001A 		MOVWI	FSR0++
-00694 03BF 0BFA 		DECFSZ	Param7A,F
-00695 03C0 2BBB 		GOTO	StoreWord16Times_L1
-00696 03C1 0008 		RETURN
-00697 03C2 	;
-00698 03C2 00F8 	Store16Times	MOVWF	Param78
-00699 03C3 3010 		MOVLW	.16
-00700 03C4 00F9 	StoreXTimes	MOVWF	Param79
-00701 03C5 0878 		MOVF	Param78,W
-00702 03C6 001A 	StoreXTimes_L1	MOVWI	FSR0++
-00703 03C7 0BF9 		DECFSZ	Param79,F
-00704 03C8 2BC6 		GOTO	StoreXTimes_L1
-00705 03C9 0008 		RETURN
-00706 03CA 	;
-00707 03CA 00F8 	Store8Times	MOVWF	Param78
-00708 03CB 3008 		MOVLW	.8
-00709 03CC 2BC4 		GOTO	StoreXTimes
-00710 03CD 	;
-00711 03CD 	;===========================================================================
-00712 03CD 	; copy eeprom to ram
-00713 03CD 	;
-00714 03CD 	;	nvServoMaxSpeed:10		;0=no Accel, 1..255 counts/20mS
-00715 03CD 	;	nvServoAccelValue:10		;1..8 counts/20mS squared
-00716 03CD 	;	nvMinTime:20		;Minimum pulse time (900uS=1800)
-00717 03CD 	;	nvMaxTime:20		;Maximum pulse time (2100uS=4200)
-00718 03CD 	;	nvServoFlags:8		;4 bits per servo
-00719 03CD 	;
-00720 03CD 0020 	EEPromToServoParams	movlb	0	;Bank 0
-00721 03CE 3005 		MOVLW	nvServoMaxSpeed
-00722 03CF 00A4 		MOVWF	EEAddrTemp
-00723 03D0 30F0 		MOVLW	LOW ServoMaxSpeed
-00724 03D1 0084 		MOVWF	FSR0L
-00725 03D2 3020 		MOVLW	HIGH ServoMaxSpeed
-00726 03D3 0085 		MOVWF	FSR0H
-00727 03D4 3020 		movlw	0x20	;ServoMaxSpeed + ServoAccelValue
-00728 03D5 00F9 		movwf	Param79
-00729 03D6 23DD 		call	ETSP_L1
-00730 03D7 	;
-00731 03D7 3040 		MOVLW	LOW MinTime
-00732 03D8 0084 		MOVWF	FSR0L
-00733 03D9 3021 		MOVLW	HIGH MinTime
-00734 03DA 0085 		MOVWF	FSR0H
-00735 03DB 3048 		movlw	0x48	;MinTime + MaxTime + ServoFlags
-00736 03DC 00F9 		movwf	Param79
-00737 03DD 	;
-00738 03DD 209A 	ETSP_L1	CALL	EERead
-00739 03DE 001A 		movwi	FSR0++
-00740 03DF 0AA4 		INCF	EEAddrTemp,F
-00741 03E0 0BF9 		decfsz	Param79,F
-00742 03E1 33FB 		BRA	ETSP_L1
-00743 03E2 0008 		RETURN
-00744 03E3 	;
-00745 03E3 	;===========================================================================
-00746 03E3 	; copy eeprom to ram
-00747 03E3 	;
-00748 03E3 0020 	EEPromToSequencer	movlb	0	;Bank 0
-00749 03E4 306D 		MOVLW	nvSequencerData
-00750 03E5 00A4 		MOVWF	EEAddrTemp
-00751 03E6 3000 		MOVLW	LOW SequencerData
-00752 03E7 0084 		MOVWF	FSR0L
-00753 03E8 3022 		MOVLW	HIGH SequencerData
-00754 03E9 0085 		MOVWF	FSR0H
+00684 03B6 23BE 		CALL	StoreWord16Times
+00685 03B7 	; DwellTime 0..15
+00686 03B7 3088 		MOVLW	LOW kServoDwellTime
+00687 03B8 00F8 		MOVWF	Param78
+00688 03B9 3013 		MOVLW	HIGH kServoDwellTime
+00689 03BA 00F9 		MOVWF	Param79
+00690 03BB 23BE 		call	StoreWord16Times
+00691 03BC 23D2 		call	EEPromToServoParams
+00692 03BD 322A 		bra	EEPromToSequencer
+00693 03BE 	;
+00694 03BE 3010 	StoreWord16Times	MOVLW	.16
+00695 03BF 00FA 		MOVWF	Param7A
+00696 03C0 0878 	StoreWord16Times_L1	MOVF	Param78,W
+00697 03C1 001A 		MOVWI	FSR0++
+00698 03C2 0879 		MOVF	Param79,W
+00699 03C3 001A 		MOVWI	FSR0++
+00700 03C4 0BFA 		DECFSZ	Param7A,F
+00701 03C5 2BC0 		GOTO	StoreWord16Times_L1
+00702 03C6 0008 		RETURN
+00703 03C7 	;
+00704 03C7 00F8 	Store16Times	MOVWF	Param78
+00705 03C8 3010 		MOVLW	.16
+00706 03C9 00F9 	StoreXTimes	MOVWF	Param79
+00707 03CA 0878 		MOVF	Param78,W
+00708 03CB 001A 	StoreXTimes_L1	MOVWI	FSR0++
+00709 03CC 0BF9 		DECFSZ	Param79,F
+00710 03CD 2BCB 		GOTO	StoreXTimes_L1
+00711 03CE 0008 		RETURN
+00712 03CF 	;
+00713 03CF 00F8 	Store8Times	MOVWF	Param78
+00714 03D0 3008 		MOVLW	.8
+00715 03D1 2BC9 		GOTO	StoreXTimes
+00716 03D2 	;
+00717 03D2 	;===========================================================================
+00718 03D2 	; copy eeprom to ram
+00719 03D2 	;
+00720 03D2 	;	nvServoMaxSpeed:10		;0=no Accel, 1..255 counts/20mS
+00721 03D2 	;	nvServoAccelValue:10		;1..8 counts/20mS squared
+00722 03D2 	;	nvMinTime:20		;Minimum pulse time (900uS=1800)
+00723 03D2 	;	nvMaxTime:20		;Maximum pulse time (2100uS=4200)
+00724 03D2 	;	nvServoFlags:8		;4 bits per servo
+00725 03D2 	;
+00726 03D2 0020 	EEPromToServoParams	movlb	0	;Bank 0
+00727 03D3 3005 		MOVLW	nvServoMaxSpeed
+00728 03D4 00A4 		MOVWF	EEAddrTemp
+00729 03D5 30F0 		MOVLW	LOW ServoMaxSpeed
+00730 03D6 0084 		MOVWF	FSR0L
+00731 03D7 3020 		MOVLW	HIGH ServoMaxSpeed
+00732 03D8 0085 		MOVWF	FSR0H
+00733 03D9 3020 		movlw	0x20	;ServoMaxSpeed + ServoAccelValue
+00734 03DA 00F9 		movwf	Param79
+00735 03DB 23E2 		call	ETSP_L1
+00736 03DC 	;
 SimpleServo16PS.asm                                                   Page: 27
 /Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
 
-00755 03EA 3080 		movlw	0x80	;SequencerData
-00756 03EB 00F9 		movwf	Param79
-00757 03EC 33F0 		bra	ETSP_L1
-00758 03ED 	;
-00759 03ED 	;===========================================================================
-00760 03ED 	; copy ram to eeprom
-00761 03ED 	;
-00762 03ED 0020 	ServoParamsToEEProm	movlb	0	;Bank 0
-00763 03EE 3005 		MOVLW	nvServoMaxSpeed
-00764 03EF 00A4 		MOVWF	EEAddrTemp
-00765 03F0 30F0 		MOVLW	LOW ServoMaxSpeed
-00766 03F1 0084 		MOVWF	FSR0L
-00767 03F2 3020 		MOVLW	HIGH ServoMaxSpeed
-00768 03F3 0085 		MOVWF	FSR0H
-00769 03F4 3020 		movlw	0x20	;ServoMaxSpeed + ServoAccelValue
-00770 03F5 00F9 		movwf	Param79
-00771 03F6 23FD 		call	SPTE_L1
-00772 03F7 	;
-00773 03F7 3040 		MOVLW	LOW MinTime
-00774 03F8 0084 		MOVWF	FSR0L
-00775 03F9 3021 		MOVLW	HIGH MinTime
-00776 03FA 0085 		MOVWF	FSR0H
-00777 03FB 3048 		movlw	0x48	;MinTime + MaxTime + ServoFlags
-00778 03FC 00F9 		movwf	Param79
-00779 03FD 	;
-00780 03FD 0012 	SPTE_L1	moviw	FSR0++
-00781 03FE 00A5 		MOVWF	EEDataTemp
-00782 03FF 20A4 		CALL	EEWrite
-00783 0400 0AA4 		INCF	EEAddrTemp,F
-00784 0401 0BF9 		decfsz	Param79,F
-00785 0402 33FA 		BRA	SPTE_L1
-00786 0403 0008 		RETURN
-00787 0404 	;
-00788 0404 	;===========================================================================
-00789 0404 	; copy ram to eeprom
-00790 0404 	;
-00791 0404 0020 	SequencerToEEProm	movlb	0	;Bank 0
-00792 0405 306D 		MOVLW	nvSequencerData
-00793 0406 00A4 		MOVWF	EEAddrTemp
-00794 0407 3000 		MOVLW	LOW SequencerData
-00795 0408 0084 		MOVWF	FSR0L
-00796 0409 3022 		MOVLW	HIGH SequencerData
-00797 040A 0085 		MOVWF	FSR0H
-00798 040B 3080 		movlw	0x80	;SequencerData
-00799 040C 00F9 		movwf	Param79
-00800 040D 33EF 		bra	SPTE_L1
-00801 040E 	;
-00802 040E 	;=========================================================================================
-00803 040E 	; Entry: W=Servo# 0..15, Param7D:Param7C = Dest
-00804 040E 	; Exit: W=changed
-00805 040E 	; Ram used: Param78, Param7C, Param7D FSR0
-00806 040E 	; Calls: none
-00807 040E 	;
-00808 040E 390F 	StartMotion	ANDLW	0x0F
-00809 040F 00F8 		MOVWF	Param78
-00810 0410 	; Copy 7D:7C to CMDSigTime
-00811 0410 3578 		LSLF	Param78,W	;x2, 0,2,4..30
-00812 0411 		LOADFSR0W	CMDSigTime
-00812 0411 3E20      M		addlw	low CMDSigTime		addlw 	low ADDRESS
-00812 0412 0084      M		movwf	FSR0L		movwf 	FSR0L
-00812 0413 0185      M		clrf	FSR0H		clrf	FSR0H
-00812 0414 3021      M		movlw	high CMDSigTime		movlw	high ADDRESS
-00812 0415 3D85      M		addwfc	FSR0H,F		addwfc	FSR0H,F	;<< needed to work w/ contig ram
-00813 0416 087C 		MOVF	Param7C,W
-00814 0417 001A 		MOVWI	FSR0++
-00815 0418 087D 		MOVF	Param7D,W
-00816 0419 001A 		MOVWI	FSR0++
-00817 041A 	; Set ServoCurSpeed to 1 (minimum)
-00818 041A 0878 		MOVF	Param78,W
-00819 041B 		LOADFSR0W	ServoCurSpeed
-00819 041B 3E10      M		addlw	low ServoCurSpeed		addlw 	low ADDRESS
-00819 041C 0084      M		movwf	FSR0L		movwf 	FSR0L
-00819 041D 0185      M		clrf	FSR0H		clrf	FSR0H
-00819 041E 3021      M		movlw	high ServoCurSpeed		movlw	high ADDRESS
-00819 041F 3D85      M		addwfc	FSR0H,F		addwfc	FSR0H,F	;<< needed to work w/ contig ram
-00820 0420 3001 		MOVLW	0x01
-00821 0421 0080 		MOVWF	INDF0
-00822 0422 	; Clear the In-Position Flag
-00823 0422 0878 		MOVF	Param78,W
-00824 0423 3907 		ANDLW	0x07
-00825 0424 		LOADFSR0W	ServoFlags
-00825 0424 3E80      M		addlw	low ServoFlags		addlw 	low ADDRESS
-00825 0425 0084      M		movwf	FSR0L		movwf 	FSR0L
-00825 0426 0185      M		clrf	FSR0H		clrf	FSR0H
-00825 0427 3021      M		movlw	high ServoFlags		movlw	high ADDRESS
-00825 0428 3D85      M		addwfc	FSR0H,F		addwfc	FSR0H,F	;<< needed to work w/ contig ram
-00826 0429 1DF8 		BTFSS	Param78,3
-00827 042A 1080 		BCF	INDF0,InPositionFlag0_7
-00828 042B 19F8 		BTFSC	Param78,3
-00829 042C 1280 		BCF	INDF0,InPositionFlag8_15
-00830 042D 	; Set ServoFlags,ServoOnBit
-00831 042D 1DF8 		BTFSS	Param78,3
-00832 042E 1500 		BSF	INDF0,ServoOnBit0_7
-00833 042F 19F8 		BTFSC	Param78,3
-00834 0430 1700 		BSF	INDF0,ServoOnBit8_15
-00835 0431 	; Clear the AccelComplete Flag
-00836 0431 0878 		MOVF	Param78,W
-00837 0432 3907 		ANDLW	0x07
-00838 0433 		LOADFSR0W	ServoFlags2
+00737 03DC 3040 		MOVLW	LOW MinTime
+00738 03DD 0084 		MOVWF	FSR0L
+00739 03DE 3021 		MOVLW	HIGH MinTime
+00740 03DF 0085 		MOVWF	FSR0H
+00741 03E0 3048 		movlw	0x48	;MinTime + MaxTime + ServoFlags
+00742 03E1 00F9 		movwf	Param79
+00743 03E2 	;
+00744 03E2 209A 	ETSP_L1	CALL	EERead
+00745 03E3 001A 		movwi	FSR0++
+00746 03E4 0AA4 		INCF	EEAddrTemp,F
+00747 03E5 0BF9 		decfsz	Param79,F
+00748 03E6 33FB 		BRA	ETSP_L1
+00749 03E7 0008 		RETURN
+00750 03E8 	;
+00751 03E8 	;===========================================================================
+00752 03E8 	; copy eeprom to ram
+00753 03E8 	;
+00754 03E8 0020 	EEPromToSequencer	movlb	0	;Bank 0
+00755 03E9 306D 		MOVLW	nvSequencerData
+00756 03EA 00A4 		MOVWF	EEAddrTemp
+00757 03EB 3000 		MOVLW	LOW SequencerData
+00758 03EC 0084 		MOVWF	FSR0L
+00759 03ED 3022 		MOVLW	HIGH SequencerData
+00760 03EE 0085 		MOVWF	FSR0H
+00761 03EF 3080 		movlw	0x80	;SequencerData
+00762 03F0 00F9 		movwf	Param79
+00763 03F1 33F0 		bra	ETSP_L1
+00764 03F2 	;
+00765 03F2 	;===========================================================================
+00766 03F2 	; copy ram to eeprom
+00767 03F2 	;
+00768 03F2 0020 	ServoParamsToEEProm	movlb	0	;Bank 0
+00769 03F3 3005 		MOVLW	nvServoMaxSpeed
+00770 03F4 00A4 		MOVWF	EEAddrTemp
+00771 03F5 30F0 		MOVLW	LOW ServoMaxSpeed
+00772 03F6 0084 		MOVWF	FSR0L
+00773 03F7 3020 		MOVLW	HIGH ServoMaxSpeed
+00774 03F8 0085 		MOVWF	FSR0H
+00775 03F9 3020 		movlw	0x20	;ServoMaxSpeed + ServoAccelValue
+00776 03FA 00F9 		movwf	Param79
+00777 03FB 2402 		call	SPTE_L1
+00778 03FC 	;
+00779 03FC 3040 		MOVLW	LOW MinTime
+00780 03FD 0084 		MOVWF	FSR0L
+00781 03FE 3021 		MOVLW	HIGH MinTime
+00782 03FF 0085 		MOVWF	FSR0H
+00783 0400 3048 		movlw	0x48	;MinTime + MaxTime + ServoFlags
+00784 0401 00F9 		movwf	Param79
+00785 0402 	;
+00786 0402 0012 	SPTE_L1	moviw	FSR0++
+00787 0403 00A5 		MOVWF	EEDataTemp
+00788 0404 20A4 		CALL	EEWrite
+00789 0405 0AA4 		INCF	EEAddrTemp,F
+00790 0406 0BF9 		decfsz	Param79,F
+00791 0407 33FA 		BRA	SPTE_L1
+00792 0408 0008 		RETURN
+00793 0409 	;
+00794 0409 	;===========================================================================
+00795 0409 	; copy ram to eeprom
+00796 0409 	;
+00797 0409 0020 	SequencerToEEProm	movlb	0	;Bank 0
+00798 040A 306D 		MOVLW	nvSequencerData
+00799 040B 00A4 		MOVWF	EEAddrTemp
+00800 040C 3000 		MOVLW	LOW SequencerData
+00801 040D 0084 		MOVWF	FSR0L
+00802 040E 3022 		MOVLW	HIGH SequencerData
+00803 040F 0085 		MOVWF	FSR0H
+00804 0410 3080 		movlw	0x80	;SequencerData
+00805 0411 00F9 		movwf	Param79
+00806 0412 33EF 		bra	SPTE_L1
+00807 0413 	;
+00808 0413 	;=========================================================================================
+00809 0413 	; Entry: W=Servo# 0..15, Param7D:Param7C = Dest
+00810 0413 	; Exit: W=changed
+00811 0413 	; Ram used: Param78, Param7C, Param7D FSR0
+00812 0413 	; Calls: none
+00813 0413 	;
+00814 0413 390F 	StartMotion	ANDLW	0x0F
+00815 0414 00F8 		MOVWF	Param78
+00816 0415 	; Copy 7D:7C to CMDSigTime
+00817 0415 3578 		LSLF	Param78,W	;x2, 0,2,4..30
+00818 0416 		LOADFSR0W	CMDSigTime
+00818 0416 3E20      M		addlw	low CMDSigTime		addlw 	low ADDRESS
+00818 0417 0084      M		movwf	FSR0L		movwf 	FSR0L
+00818 0418 0185      M		clrf	FSR0H		clrf	FSR0H
+00818 0419 3021      M		movlw	high CMDSigTime		movlw	high ADDRESS
+00818 041A 3D85      M		addwfc	FSR0H,F		addwfc	FSR0H,F	;<< needed to work w/ contig ram
+00819 041B 087C 		MOVF	Param7C,W
+00820 041C 001A 		MOVWI	FSR0++
+00821 041D 087D 		MOVF	Param7D,W
+00822 041E 001A 		MOVWI	FSR0++
+00823 041F 	; Set ServoCurSpeed to 1 (minimum)
+00824 041F 0878 		MOVF	Param78,W
+00825 0420 		LOADFSR0W	ServoCurSpeed
+00825 0420 3E10      M		addlw	low ServoCurSpeed		addlw 	low ADDRESS
+00825 0421 0084      M		movwf	FSR0L		movwf 	FSR0L
+00825 0422 0185      M		clrf	FSR0H		clrf	FSR0H
+00825 0423 3021      M		movlw	high ServoCurSpeed		movlw	high ADDRESS
+00825 0424 3D85      M		addwfc	FSR0H,F		addwfc	FSR0H,F	;<< needed to work w/ contig ram
 SimpleServo16PS.asm                                                   Page: 28
 /Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
 
-00838 0433 3E88      M		addlw	low ServoFlags2		addlw 	low ADDRESS
-00838 0434 0084      M		movwf	FSR0L		movwf 	FSR0L
-00838 0435 0185      M		clrf	FSR0H		clrf	FSR0H
-00838 0436 3021      M		movlw	high ServoFlags2		movlw	high ADDRESS
-00838 0437 3D85      M		addwfc	FSR0H,F		addwfc	FSR0H,F	;<< needed to work w/ contig ram
-00839 0438 1DF8 		BTFSS	Param78,3
-00840 0439 1000 		BCF	INDF0,AccelComplete0_7
-00841 043A 19F8 		BTFSC	Param78,3
-00842 043B 1200 		BCF	INDF0,AccelComplete8_15
-00843 043C 	; Clear AccelRampLen
-00844 043C 3578 		LSLF	Param78,W	;x2, 0,2,4..30
-00845 043D 		LOADFSR0W	AccelRampLen
-00845 043D 3EE0      M		addlw	low AccelRampLen		addlw 	low ADDRESS
-00845 043E 0084      M		movwf	FSR0L		movwf 	FSR0L
-00845 043F 0185      M		clrf	FSR0H		clrf	FSR0H
-00845 0440 3021      M		movlw	high AccelRampLen		movlw	high ADDRESS
-00845 0441 3D85      M		addwfc	FSR0H,F		addwfc	FSR0H,F	;<< needed to work w/ contig ram
-00846 0442 0103 		CLRW
-00847 0443 001A 		MOVWI	FSR0++
-00848 0444 001A 		MOVWI	FSR0++
-00849 0445 0008 		RETURN
-00850 0446 	;
-00851 0446 	;=========================================================================================
-00852 0446 	; Servo Sequencer
-00853 0446 	;
-00854 0446 	; Entry: none
-00855 0446 	;
-00856 0446 0025 	DoSequenceCmd	movlb	5	;Bank 5
-00857 0447 3080 		movlw	kSeqMemSize
-00858 0448 0266 		subwf	SequencerPtr,W	;W=SequencerPtr-kSeqMemSize
-00859 0449 		SKPB		;SequencerPtr<kSeqMemSize?
-00859 0449 1803      M		BTFSC	STATUS,C		BTFSC	STATUS,C
-00860 044A 321C 		bra	DoSeqDone	; No, Sequencer is past end
+00826 0425 3001 		MOVLW	0x01
+00827 0426 0080 		MOVWF	INDF0
+00828 0427 	; Clear the In-Position Flag
+00829 0427 0878 		MOVF	Param78,W
+00830 0428 3907 		ANDLW	0x07
+00831 0429 		LOADFSR0W	ServoFlags
+00831 0429 3E80      M		addlw	low ServoFlags		addlw 	low ADDRESS
+00831 042A 0084      M		movwf	FSR0L		movwf 	FSR0L
+00831 042B 0185      M		clrf	FSR0H		clrf	FSR0H
+00831 042C 3021      M		movlw	high ServoFlags		movlw	high ADDRESS
+00831 042D 3D85      M		addwfc	FSR0H,F		addwfc	FSR0H,F	;<< needed to work w/ contig ram
+00832 042E 1DF8 		BTFSS	Param78,3
+00833 042F 1080 		BCF	INDF0,InPositionFlag0_7
+00834 0430 19F8 		BTFSC	Param78,3
+00835 0431 1280 		BCF	INDF0,InPositionFlag8_15
+00836 0432 	; Set ServoFlags,ServoOnBit
+00837 0432 1DF8 		BTFSS	Param78,3
+00838 0433 1500 		BSF	INDF0,ServoOnBit0_7
+00839 0434 19F8 		BTFSC	Param78,3
+00840 0435 1700 		BSF	INDF0,ServoOnBit8_15
+00841 0436 	; Clear the AccelComplete Flag
+00842 0436 0878 		MOVF	Param78,W
+00843 0437 3907 		ANDLW	0x07
+00844 0438 		LOADFSR0W	ServoFlags2
+00844 0438 3E88      M		addlw	low ServoFlags2		addlw 	low ADDRESS
+00844 0439 0084      M		movwf	FSR0L		movwf 	FSR0L
+00844 043A 0185      M		clrf	FSR0H		clrf	FSR0H
+00844 043B 3021      M		movlw	high ServoFlags2		movlw	high ADDRESS
+00844 043C 3D85      M		addwfc	FSR0H,F		addwfc	FSR0H,F	;<< needed to work w/ contig ram
+00845 043D 1DF8 		BTFSS	Param78,3
+00846 043E 1000 		BCF	INDF0,AccelComplete0_7
+00847 043F 19F8 		BTFSC	Param78,3
+00848 0440 1200 		BCF	INDF0,AccelComplete8_15
+00849 0441 	; Clear AccelRampLen
+00850 0441 3578 		LSLF	Param78,W	;x2, 0,2,4..30
+00851 0442 		LOADFSR0W	AccelRampLen
+00851 0442 3EE0      M		addlw	low AccelRampLen		addlw 	low ADDRESS
+00851 0443 0084      M		movwf	FSR0L		movwf 	FSR0L
+00851 0444 0185      M		clrf	FSR0H		clrf	FSR0H
+00851 0445 3021      M		movlw	high AccelRampLen		movlw	high ADDRESS
+00851 0446 3D85      M		addwfc	FSR0H,F		addwfc	FSR0H,F	;<< needed to work w/ contig ram
+00852 0447 0103 		CLRW
+00853 0448 001A 		MOVWI	FSR0++
+00854 0449 001A 		MOVWI	FSR0++
+00855 044A 0008 		RETURN
+00856 044B 	;
+00857 044B 	;=========================================================================================
+00858 044B 	; Servo Sequencer
+00859 044B 	;
+00860 044B 	; Entry: none
 00861 044B 	;
-00862 044B 	; Handle Wait states now
-00863 044B 	;SeqWaitForTimer
-00864 044B 	;SeqWaitForInPos
-00865 044B 	;SeqWaitForBtn2
-00866 044B 	;SeqWaitForBtn3
-00867 044B 	;
-00868 044B 	;
-00869 044B 0866 		movf	SequencerPtr,W
-00870 044C 		LOADFSR0W	SequencerData
-00870 044C 3E00      M		addlw	low SequencerData		addlw 	low ADDRESS
-00870 044D 0084      M		movwf	FSR0L		movwf 	FSR0L
-00870 044E 0185      M		clrf	FSR0H		clrf	FSR0H
-00870 044F 3022      M		movlw	high SequencerData		movlw	high ADDRESS
-00870 0450 3D85      M		addwfc	FSR0H,F		addwfc	FSR0H,F	;<< needed to work w/ contig ram
-00871 0451 0AE6 		incf	SequencerPtr,F
-00872 0452 0012 		moviw	FSR0++
-00873 0453 00F8 		movwf	Param78
-00874 0454 0E78 		swapf	Param78,W
-00875 0455 390F 		andlw	0x0F
-00876 0456 000B 		brw
-00877 0457 2C67 		goto	DoSeqDone	;kSeqCmd_End 
-00878 0458 2C70 		goto	DoSeqMoveCmd	;kSeqCmd_Move +ServoNum, Dest
-00879 0459 2C7F 		goto	DoSeqSetSpeedCmd	;kSeqCmd_SetSpeed +ServoNum, Speed
-00880 045A 2C8A 		goto	DoSeqSetAccelCmd	;kSeqCmd_SetAccel +ServoNum, Accel
-00881 045B 2C92 		goto	DoSeqSetMinCmd	;kSeqCmd_SetMin +ServoNum, MinL, MinH
-00882 045C 2C9D 		goto	DoSeqSetMaxCmd	;kSeqCmd_SetMax +ServoNum, MaxL, MaxH
-00883 045D 2CA5 		goto	DoSeqSetLoopTimeCmd	;kSeqCmd_SetLoopTime +TimerL high nibble, TimerH
-00884 045E 	;  load this value into master sequence timer, time counts down to zero, 0.01 second timebase
-00885 045E 2CB5 		goto	DoSeqWaitUntilCmd	;kSeqCmd_WaitUntil +TimerL high nibble, TimerH
-00886 045F 	;  wait here until master sequence timer is less than this value
-00887 045F 2CC3 		goto	DoSeqMov2MinCmd	;kSeqCmd_Mov2Min +ServoNum
-00888 0460 2CCF 		goto	DoSeqMov2MaxCmd	;kSeqCmd_Mov2Max +ServoNum
-00889 0461 2CD7 		goto	DoSeqMov2CtrCmd	;kSeqCmd_Mov2Ctr +ServoNum
-00890 0462 2CDC 		goto	DoSeqWaitInPosCmd	;kSeqCmd_WaitInPos +ServoNum
-00891 0463 2CE1 		goto	DoSeqStopCmd	;kSeqCmd_Stop +Flags? Mode=0 only
-00892 0464 2CE8 		goto	DoSeqWaitForBtnCmd	;kSeqCmd_WaitForBtn +Btn#, 2 or 3 only
-00893 0465 2C6E 		goto	SeqReturn	;E not used
-00894 0466 2C6E 		goto	SeqReturn	;F not used
-00895 0467 	;
-00896 0467 01E6 	DoSeqDone	clrf	SequencerPtr
-00897 0468 	; if mode=0 then stop sequencer
-00898 0468 0020 		movlb	0	;Bank 0
-00899 0469 08B7 		movf	SysMode,F
-00900 046A 		SKPZ
-00900 046A 1D03      M		BTFSS	STATUS,Z		BTFSS	STATUS,Z
-00901 046B 0008 		return		;Mode <> 0
-00902 046C 0025 		movlb	5	;Bank 5
-00903 046D 1065 		bcf	SequencerFlags,SeqActive
-00904 046E 0020 	SeqReturn	movlb	0	;Bank 0
-00905 046F 0008 		return
-00906 0470 	;
-00907 0470 0012 	DoSeqMoveCmd	moviw	FSR0++
-00908 0471 0AE6 		incf	SequencerPtr,F
-00909 0472 	; Position values are UInt8 x 8 + 2048, 0x01 = 1*8+2048 = 2056, 0.5 uS timebase,
-00910 0472 	;   0x00 = 2048, 0xFF = 255*8+2048 = 4088 = 0.002044 Seconds maximum pulse width.
-00911 0472 00FC 		movwf	Param7C
-00912 0473 01FD 		clrf	Param7D
-00913 0474 35FC 		lslf	Param7C,F
-00914 0475 0DFD 		rlf	Param7D,F	
-00915 0476 35FC 		lslf	Param7C,F
-00916 0477 0DFD 		rlf	Param7D,F	
-00917 0478 35FC 		lslf	Param7C,F
-00918 0479 0DFD 		rlf	Param7D,F
-00919 047A 15FD 		bsf	Param7D,3
-00920 047B 	;
+00862 044B 0025 	DoSequenceCmd	movlb	5	;Bank 5
+00863 044C 3080 		movlw	kSeqMemSize
+00864 044D 0266 		subwf	SequencerPtr,W	;W=SequencerPtr-kSeqMemSize
+00865 044E 		SKPB		;SequencerPtr<kSeqMemSize?
+00865 044E 1803      M		BTFSC	STATUS,C		BTFSC	STATUS,C
+00866 044F 3249 		bra	DoSeqDone	; No, Sequencer is past end
+00867 0450 	;
+00868 0450 	; Handle Wait states now
+00869 0450 	;----------------------
+00870 0450 	;SeqWaitForTimer
+00871 0450 1CE5 		btfss	SequencerFlags,SeqWaitForTimer
+00872 0451 320A 		bra	DoSequenceCmd_1
+00873 0452 0868 		movf	SequencerTime,W
+00874 0453 00F8 		movwf	Param78	;MSB of time
+00875 0454 0867 		movf	SequencerServoNum,W	;LSB of time
+00876 0455 0020 		movlb	0	;Bank 0
+00877 0456 0228 		subwf	Timer2Lo,W
+00878 0457 0878 		movf	Param78,W
+00879 0458 3B29 		subwfb	Timer2Hi,W	;W=Timer2-SequencerTime
+00880 0459 		SKPNB		;SequencerTime>Timer2?
+00880 0459 1C03      M		BTFSS	STATUS,C		BTFSS	STATUS,C
+00881 045A 10E5 		bcf	SequencerFlags,SeqWaitForTimer  ; Yes
+00882 045B 0008 		return	
+00883 045C 	;	
+00884 045C 	;----------------------
+00885 045C 	;SeqWaitForInPos
+00886 045C 1D65 	DoSequenceCmd_1	btfss	SequencerFlags,SeqWaitForInPos
+00887 045D 320F 		bra	DoSequenceCmd_2
+00888 045E 0867 		movf	SequencerServoNum,W
+00889 045F 3907 		ANDLW	0x07
+00890 0460 		LOADFSR0W	ServoFlags
+00890 0460 3E80      M		addlw	low ServoFlags		addlw 	low ADDRESS
+00890 0461 0084      M		movwf	FSR0L		movwf 	FSR0L
+00890 0462 0185      M		clrf	FSR0H		clrf	FSR0H
+00890 0463 3021      M		movlw	high ServoFlags		movlw	high ADDRESS
+00890 0464 3D85      M		addwfc	FSR0H,F		addwfc	FSR0H,F	;<< needed to work w/ contig ram
+00891 0465 1DE7 		btfss	SequencerServoNum,3
+00892 0466 3203 		bra	DoSequenceCmd_1a
+00893 0467 	;
+00894 0467 1A80 		btfsc	INDF0,InPositionFlag8_15
+00895 0468 1165 		bcf	SequencerFlags,SeqWaitForInPos
+00896 0469 3236 		bra	SeqReturn
+00897 046A 	;
+00898 046A 1880 	DoSequenceCmd_1a	btfsc	INDF0,InPositionFlag0_7
+00899 046B 1165 		bcf	SequencerFlags,SeqWaitForInPos
+00900 046C 3233 		bra	SeqReturn
+00901 046D 	;	
+00902 046D 	;----------------------
 SimpleServo16PS.asm                                                   Page: 29
 /Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
 
-00921 047B 0878 	DoSeqMov2	movf	Param78,W
-00922 047C 390F 		andlw	0x0F
-00923 047D 240E 		call	StartMotion
-00924 047E 33EF 		bra	SeqReturn
-00925 047F 	;
-00926 047F 0878 	DoSeqSetSpeedCmd	movf	Param78,W
-00927 0480 390F 		andlw	0x0F
-00928 0481 		LOADFSR1W	ServoMaxSpeed
-00928 0481 3EF0      M		addlw	low ServoMaxSpeed		addlw 	low ADDRESS
-00928 0482 0086      M		movwf	FSR1L		movwf 	FSR1L
-00928 0483 0187      M		clrf	FSR1H		clrf	FSR1H
-00928 0484 3020      M		movlw	high ServoMaxSpeed		movlw	high ADDRESS
-00928 0485 3D87      M		addwfc	FSR1H,F		addwfc	FSR1H,F	;<< needed to work w/ contig ram
-00929 0486 0012 	DoSeqCpByte	moviw	FSR0++
-00930 0487 001E 		movwi	FSR1++
-00931 0488 0AE6 		incf	SequencerPtr,F
-00932 0489 2C6E 		goto	SeqReturn
-00933 048A 	;
-00934 048A 0878 	DoSeqSetAccelCmd	movf	Param78,W
-00935 048B 390F 		andlw	0x0F
-00936 048C 		LOADFSR1W	ServoAccelValue
-00936 048C 3E00      M		addlw	low ServoAccelValue		addlw 	low ADDRESS
-00936 048D 0086      M		movwf	FSR1L		movwf 	FSR1L
-00936 048E 0187      M		clrf	FSR1H		clrf	FSR1H
-00936 048F 3021      M		movlw	high ServoAccelValue		movlw	high ADDRESS
-00936 0490 3D87      M		addwfc	FSR1H,F		addwfc	FSR1H,F	;<< needed to work w/ contig ram
-00937 0491 33F4 		bra	DoSeqCpByte
-00938 0492 	;
-00939 0492 3578 	DoSeqSetMinCmd	lslf	Param78,W
-00940 0493 391E 		andlw	0x1E
-00941 0494 		LOADFSR1W	MinTime
-00941 0494 3E40      M		addlw	low MinTime		addlw 	low ADDRESS
-00941 0495 0086      M		movwf	FSR1L		movwf 	FSR1L
-00941 0496 0187      M		clrf	FSR1H		clrf	FSR1H
-00941 0497 3021      M		movlw	high MinTime		movlw	high ADDRESS
-00941 0498 3D87      M		addwfc	FSR1H,F		addwfc	FSR1H,F	;<< needed to work w/ contig ram
-00942 0499 0012 	DoSeqCpWord	moviw	FSR0++
-00943 049A 001E 		movwi	FSR1++
-00944 049B 0AE6 		incf	SequencerPtr,F
-00945 049C 33E9 		bra	DoSeqCpByte
-00946 049D 	;
-00947 049D 3578 	DoSeqSetMaxCmd	lslf	Param78,W
-00948 049E 391E 		andlw	0x1E
-00949 049F 		LOADFSR1W	MaxTime
-00949 049F 3E60      M		addlw	low MaxTime		addlw 	low ADDRESS
-00949 04A0 0086      M		movwf	FSR1L		movwf 	FSR1L
-00949 04A1 0187      M		clrf	FSR1H		clrf	FSR1H
-00949 04A2 3021      M		movlw	high MaxTime		movlw	high ADDRESS
-00949 04A3 3D87      M		addwfc	FSR1H,F		addwfc	FSR1H,F	;<< needed to work w/ contig ram
-00950 04A4 33F4 		bra	DoSeqCpWord
-00951 04A5 	;
-00952 04A5 0E78 	DoSeqSetLoopTimeCmd	swapf	Param78,W
-00953 04A6 39F0 		andlw	0xF0
-00954 04A7 00FA 		movwf	Param7A	;MSB of Wait time
-00955 04A8 0012 		moviw	FSR0++
-00956 04A9 0AE6 		incf	SequencerPtr,F
-00957 04AA 0020 		movlb	0	;Bank 0
-00958 04AB 00F8 		movwf	Param78
-00959 04AC 0E78 		swapf	Param78,W
-00960 04AD 390F 		andlw	0x0F
-00961 04AE 04FA 		iorwf	Param7A,F	;low nibble of MSB
-00962 04AF 0E78 		swapf	Param78,W
-00963 04B0 39F0 		andlw	0xF0
-00964 04B1 00A8 		movwf	Timer2Lo
-00965 04B2 087A 		movf	Param7A,W
-00966 04B3 00A9 		movwf	Timer2Hi
-00967 04B4 0008 		return
-00968 04B5 	;
-00969 04B5 14E5 	DoSeqWaitUntilCmd	bsf	SequencerFlags,SeqWaitForTimer
-00970 04B6 0E78 		swapf	Param78,W
-00971 04B7 39F0 		andlw	0xF0
-00972 04B8 00E8 		movwf	SequencerTime	;MSB of Wait time
-00973 04B9 0012 		moviw	FSR0++
-00974 04BA 0AE6 		incf	SequencerPtr,F
-00975 04BB 00F8 		movwf	Param78
-00976 04BC 0E78 		swapf	Param78,W
-00977 04BD 390F 		andlw	0x0F
-00978 04BE 04E8 		iorwf	SequencerTime,F
-00979 04BF 0E78 		swapf	Param78,W
-00980 04C0 39F0 		andlw	0xF0
-00981 04C1 00E7 		movwf	SequencerServoNum	;for Wait..., LSB ot Time
-00982 04C2 33AB 		bra	SeqReturn
-00983 04C3 	;
-00984 04C3 3578 	DoSeqMov2MinCmd	lslf	Param78,W
-00985 04C4 391E 		andlw	0x1E
-00986 04C5 		LOADFSR0W	MinTime
-00986 04C5 3E40      M		addlw	low MinTime		addlw 	low ADDRESS
-00986 04C6 0084      M		movwf	FSR0L		movwf 	FSR0L
-00986 04C7 0185      M		clrf	FSR0H		clrf	FSR0H
-00986 04C8 3021      M		movlw	high MinTime		movlw	high ADDRESS
-00986 04C9 3D85      M		addwfc	FSR0H,F		addwfc	FSR0H,F	;<< needed to work w/ contig ram
-00987 04CA 0012 	SeqMov2FSR0	moviw	FSR0++
-00988 04CB 00FC 		movwf	Param7C
-00989 04CC 0012 		moviw	FSR0++
-00990 04CD 00FD 		movwf	Param7D
-00991 04CE 33AC 		bra	DoSeqMov2
-00992 04CF 	;
-00993 04CF 3578 	DoSeqMov2MaxCmd	lslf	Param78,W
-00994 04D0 391E 		andlw	0x1E
+00903 046D 	;SeqWaitForBtn2
+00904 046D 1E65 	DoSequenceCmd_2	btfss	SequencerFlags,SeqWaitForBtn2
+00905 046E 3206 		bra	DoSequenceCmd_3
+00906 046F 0020 		movlb	0	;Bank 0
+00907 0470 1CBB 		btfss	SW2_Flag
+00908 0471 0008 		return
+00909 0472 0025 		movlb	5	;Bank 5
+00910 0473 1265 		bcf	SequencerFlags,SeqWaitForBtn2
+00911 0474 322B 		bra	SeqReturn
+00912 0475 	;----------------------
+00913 0475 	;SeqWaitForBtn3
+00914 0475 1EE5 	DoSequenceCmd_3	btfss	SequencerFlags,SeqWaitForBtn3
+00915 0476 3206 		bra	DoSequenceCmd_4
+00916 0477 0020 		movlb	0	;Bank 0
+00917 0478 1D3B 		btfss	SW3_Flag
+00918 0479 0008 		return
+00919 047A 0025 		movlb	5	;Bank 5
+00920 047B 12E5 		bcf	SequencerFlags,SeqWaitForBtn3
+00921 047C 3223 		bra	SeqReturn
+00922 047D 	;----------------------
+00923 047D 	;
+00924 047D 	;
+00925 047D 0866 	DoSequenceCmd_4	movf	SequencerPtr,W
+00926 047E 		LOADFSR0W	SequencerData
+00926 047E 3E00      M		addlw	low SequencerData		addlw 	low ADDRESS
+00926 047F 0084      M		movwf	FSR0L		movwf 	FSR0L
+00926 0480 0185      M		clrf	FSR0H		clrf	FSR0H
+00926 0481 3022      M		movlw	high SequencerData		movlw	high ADDRESS
+00926 0482 3D85      M		addwfc	FSR0H,F		addwfc	FSR0H,F	;<< needed to work w/ contig ram
+00927 0483 0AE6 		incf	SequencerPtr,F
+00928 0484 0012 		moviw	FSR0++
+00929 0485 00F8 		movwf	Param78
+00930 0486 0E78 		swapf	Param78,W
+00931 0487 390F 		andlw	0x0F
+00932 0488 000B 		brw
+00933 0489 2C99 		goto	DoSeqDone	;kSeqCmd_End 
+00934 048A 2CA2 		goto	DoSeqMoveCmd	;kSeqCmd_Move +ServoNum, Dest
+00935 048B 2CB1 		goto	DoSeqSetSpeedCmd	;kSeqCmd_SetSpeed +ServoNum, Speed
+00936 048C 2CBC 		goto	DoSeqSetAccelCmd	;kSeqCmd_SetAccel +ServoNum, Accel
+00937 048D 2CC4 		goto	DoSeqSetMinCmd	;kSeqCmd_SetMin +ServoNum, MinL, MinH
+00938 048E 2CCF 		goto	DoSeqSetMaxCmd	;kSeqCmd_SetMax +ServoNum, MaxL, MaxH
+00939 048F 2CD7 		goto	DoSeqSetLoopTimeCmd	;kSeqCmd_SetLoopTime +TimerL high nibble, TimerH
+00940 0490 	;  load this value into master sequence timer, time counts down to zero, 0.01 second timebase
+00941 0490 2CE7 		goto	DoSeqWaitUntilCmd	;kSeqCmd_WaitUntil +TimerL high nibble, TimerH
+00942 0491 	;  wait here until master sequence timer is less than this value
+00943 0491 2CF5 		goto	DoSeqMov2MinCmd	;kSeqCmd_Mov2Min +ServoNum
+00944 0492 2D01 		goto	DoSeqMov2MaxCmd	;kSeqCmd_Mov2Max +ServoNum
+00945 0493 2D09 		goto	DoSeqMov2CtrCmd	;kSeqCmd_Mov2Ctr +ServoNum
+00946 0494 2D0E 		goto	DoSeqWaitInPosCmd	;kSeqCmd_WaitInPos +ServoNum
+00947 0495 2D13 		goto	DoSeqStopCmd	;kSeqCmd_Stop +Flags? Mode=0 only
+00948 0496 2D1A 		goto	DoSeqWaitForBtnCmd	;kSeqCmd_WaitForBtn +Btn#, 2 or 3 only
+00949 0497 2CA0 		goto	SeqReturn	;E not used
+00950 0498 2CA0 		goto	SeqReturn	;F not used
+00951 0499 	;
+00952 0499 01E6 	DoSeqDone	clrf	SequencerPtr
+00953 049A 	; if mode=0 then stop sequencer
+00954 049A 0020 		movlb	0	;Bank 0
+00955 049B 08B7 		movf	SysMode,F
+00956 049C 		SKPZ
+00956 049C 1D03      M		BTFSS	STATUS,Z		BTFSS	STATUS,Z
+00957 049D 0008 		return		;Mode <> 0
+00958 049E 0025 		movlb	5	;Bank 5
+00959 049F 1065 		bcf	SequencerFlags,SeqActive
+00960 04A0 0020 	SeqReturn	movlb	0	;Bank 0
+00961 04A1 0008 		return
+00962 04A2 	;
+00963 04A2 0012 	DoSeqMoveCmd	moviw	FSR0++
+00964 04A3 0AE6 		incf	SequencerPtr,F
+00965 04A4 	; Position values are UInt8 x 8 + 2048, 0x01 = 1*8+2048 = 2056, 0.5 uS timebase,
+00966 04A4 	;   0x00 = 2048, 0xFF = 255*8+2048 = 4088 = 0.002044 Seconds maximum pulse width.
+00967 04A4 00FC 		movwf	Param7C
+00968 04A5 01FD 		clrf	Param7D
+00969 04A6 35FC 		lslf	Param7C,F
+00970 04A7 0DFD 		rlf	Param7D,F	
+00971 04A8 35FC 		lslf	Param7C,F
+00972 04A9 0DFD 		rlf	Param7D,F	
+00973 04AA 35FC 		lslf	Param7C,F
+00974 04AB 0DFD 		rlf	Param7D,F
+00975 04AC 15FD 		bsf	Param7D,3
+00976 04AD 	;
+00977 04AD 0878 	DoSeqMov2	movf	Param78,W
+00978 04AE 390F 		andlw	0x0F
+00979 04AF 2413 		call	StartMotion
+00980 04B0 33EF 		bra	SeqReturn
+00981 04B1 	;
+00982 04B1 0878 	DoSeqSetSpeedCmd	movf	Param78,W
+00983 04B2 390F 		andlw	0x0F
+00984 04B3 		LOADFSR1W	ServoMaxSpeed
+00984 04B3 3EF0      M		addlw	low ServoMaxSpeed		addlw 	low ADDRESS
+00984 04B4 0086      M		movwf	FSR1L		movwf 	FSR1L
+00984 04B5 0187      M		clrf	FSR1H		clrf	FSR1H
+00984 04B6 3020      M		movlw	high ServoMaxSpeed		movlw	high ADDRESS
+00984 04B7 3D87      M		addwfc	FSR1H,F		addwfc	FSR1H,F	;<< needed to work w/ contig ram
+00985 04B8 0012 	DoSeqCpByte	moviw	FSR0++
+00986 04B9 001E 		movwi	FSR1++
+00987 04BA 0AE6 		incf	SequencerPtr,F
+00988 04BB 2CA0 		goto	SeqReturn
+00989 04BC 	;
+00990 04BC 0878 	DoSeqSetAccelCmd	movf	Param78,W
 SimpleServo16PS.asm                                                   Page: 30
 /Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
 
-00995 04D1 		LOADFSR0W	MaxTime
-00995 04D1 3E60      M		addlw	low MaxTime		addlw 	low ADDRESS
-00995 04D2 0084      M		movwf	FSR0L		movwf 	FSR0L
-00995 04D3 0185      M		clrf	FSR0H		clrf	FSR0H
-00995 04D4 3021      M		movlw	high MaxTime		movlw	high ADDRESS
-00995 04D5 3D85      M		addwfc	FSR0H,F		addwfc	FSR0H,F	;<< needed to work w/ contig ram
-00996 04D6 33F3 		bra	SeqMov2FSR0
-00997 04D7 	;
-00998 04D7 30B8 	DoSeqMov2CtrCmd	movlw	LOW kCenterPulseWidth
-00999 04D8 00FC 		movwf	Param7C
-01000 04D9 300B 		movlw	HIGH kCenterPulseWidth
-01001 04DA 00FD 		movwf	Param7D
-01002 04DB 339F 		bra	DoSeqMov2
-01003 04DC 	;
-01004 04DC 0878 	DoSeqWaitInPosCmd	movf	Param78,W
-01005 04DD 390F 		andlw	0x0F
-01006 04DE 00E7 		movwf	SequencerServoNum
-01007 04DF 1565 		bsf	SequencerFlags,SeqWaitForInPos
-01008 04E0 338D 		bra	SeqReturn
-01009 04E1 	;
-01010 04E1 0020 	DoSeqStopCmd	movlb	0	;Bank 0
-01011 04E2 08B7 		movf	SysMode,F
-01012 04E3 		SKPZ
-01012 04E3 1D03      M		BTFSS	STATUS,Z		BTFSS	STATUS,Z
-01013 04E4 0008 		return
-01014 04E5 0025 		movlb	5	;Bank 5
-01015 04E6 1065 		bcf	SequencerFlags,SeqActive
-01016 04E7 3386 		bra	SeqReturn
-01017 04E8 	;
-01018 04E8 1878 	DoSeqWaitForBtnCmd	btfsc	Param78,0
-01019 04E9 1665 		bsf	SequencerFlags,SeqWaitForBtn2
-01020 04EA 18F8 		btfsc	Param78,1
-01021 04EB 16E5 		bsf	SequencerFlags,SeqWaitForBtn3
-01022 04EC 3381 		bra	SeqReturn
-01023 04ED 	;
-01024 04ED 		if oldCode
-01136 04ED 		endif
-01137 04ED 	;
-01138 04ED 	;=========================================================================================
-01139 04ED 	; ClampInt(Param7D:Param7C,kMinPulseWidth,kMaxPulseWidth)
-01140 04ED 	;
-01141 04ED 	; Entry: Param7D:Param7C
-01142 04ED 	; Exit: Param7D:Param7C=ClampInt(Param7D:Param7C,kMinPulseWidth,kMaxPulseWidth)
-01143 04ED 	;
-01144 04ED 3010 	ClampInt	MOVLW	high kMaxPulseWidth
-01145 04EE 027D 		SUBWF	Param7D,W	;7D-kMaxPulseWidth
-01146 04EF 		SKPNB		;7D<Max?
-01146 04EF 1C03      M		BTFSS	STATUS,C		BTFSS	STATUS,C
-01147 04F0 2CFA 		GOTO	ClampInt_1	; Yes
-01148 04F1 		SKPZ		;7D=Max?
-01148 04F1 1D03      M		BTFSS	STATUS,Z		BTFSS	STATUS,Z
-01149 04F2 2D09 		GOTO	ClampInt_tooHigh	; No, its greater.
-01150 04F3 3068 		MOVLW	low kMaxPulseWidth	; Yes, MSB was equal check LSB
-01151 04F4 027C 		SUBWF	Param7C,W	;7C-kMaxPulseWidth
-01152 04F5 		SKPNZ		;=kMaxPulseWidth
-01152 04F5 1903      M		BTFSC	STATUS,Z		BTFSC	STATUS,Z
-01153 04F6 0008 		RETURN		;Yes
-01154 04F7 		SKPB		;7C<Max?
-01154 04F7 1803      M		BTFSC	STATUS,C		BTFSC	STATUS,C
-01155 04F8 2D09 		GOTO	ClampInt_tooHigh	; No
-01156 04F9 0008 		RETURN		; Yes
-01157 04FA 	;
-01158 04FA 3007 	ClampInt_1	MOVLW	high kMinPulseWidth
-01159 04FB 027D 		SUBWF	Param7D,W	;7D-kMinPulseWidth
-01160 04FC 		SKPNB		;7D<Min?
-01160 04FC 1C03      M		BTFSS	STATUS,C		BTFSS	STATUS,C
-01161 04FD 2D04 		GOTO	ClampInt_tooLow	; Yes
-01162 04FE 		SKPZ		;=Min?
-01162 04FE 1D03      M		BTFSS	STATUS,Z		BTFSS	STATUS,Z
-01163 04FF 0008 		RETURN		; No, 7D>kMinPulseWidth
-01164 0500 3008 		MOVLW	low kMinPulseWidth	; Yes, MSB is a match
-01165 0501 027C 		SUBWF	Param7C,W	;7C-kMinPulseWidth
-01166 0502 		SKPB		;7C>=Min?
-01166 0502 1803      M		BTFSC	STATUS,C		BTFSC	STATUS,C
-01167 0503 0008 		RETURN		; Yes
-01168 0504 	;	
-01169 0504 3008 	ClampInt_tooLow	MOVLW	low kMinPulseWidth
-01170 0505 00FC 		MOVWF	Param7C
-01171 0506 3007 		MOVLW	high kMinPulseWidth
-01172 0507 00FD 		MOVWF	Param7D
-01173 0508 0008 		RETURN
-01174 0509 	;
-01175 0509 3068 	ClampInt_tooHigh	MOVLW	low kMaxPulseWidth
-01176 050A 00FC 		MOVWF	Param7C
-01177 050B 3010 		MOVLW	high kMaxPulseWidth
-01178 050C 00FD 		MOVWF	Param7D
-01179 050D 0008 		RETURN
-01180 050E 	;
-01181 050E 	;=========================================================================================
-01182 050E 	; ClampMinMax(Param7D:Param7C,W = offset servo# * 2 (0,2,4..30)
-01183 050E 	;
-01184 050E 	; Entry: Param7D:Param7C, W=servo# x 2
-01185 050E 	; Exit: Param7D:Param7C=ClampInt(Param7D:Param7C,(MinTime0_7+Param78),(MaxTime0_7+Param78))
-01186 050E 	; Ram used: Param78, Param7C, Param7D, FSR0
-01187 050E 	;
-01188 050E 00F8 	ClampMinMax	MOVWF	Param78	;ServoNum * 2
-01189 050F 0A78 		INCF	Param78,W	; MSB index
-01190 0510 		LOADFSR0W	MaxTime
-01190 0510 3E60      M		addlw	low MaxTime		addlw 	low ADDRESS
+00991 04BD 390F 		andlw	0x0F
+00992 04BE 		LOADFSR1W	ServoAccelValue
+00992 04BE 3E00      M		addlw	low ServoAccelValue		addlw 	low ADDRESS
+00992 04BF 0086      M		movwf	FSR1L		movwf 	FSR1L
+00992 04C0 0187      M		clrf	FSR1H		clrf	FSR1H
+00992 04C1 3021      M		movlw	high ServoAccelValue		movlw	high ADDRESS
+00992 04C2 3D87      M		addwfc	FSR1H,F		addwfc	FSR1H,F	;<< needed to work w/ contig ram
+00993 04C3 33F4 		bra	DoSeqCpByte
+00994 04C4 	;
+00995 04C4 3578 	DoSeqSetMinCmd	lslf	Param78,W
+00996 04C5 391E 		andlw	0x1E
+00997 04C6 		LOADFSR1W	MinTime
+00997 04C6 3E40      M		addlw	low MinTime		addlw 	low ADDRESS
+00997 04C7 0086      M		movwf	FSR1L		movwf 	FSR1L
+00997 04C8 0187      M		clrf	FSR1H		clrf	FSR1H
+00997 04C9 3021      M		movlw	high MinTime		movlw	high ADDRESS
+00997 04CA 3D87      M		addwfc	FSR1H,F		addwfc	FSR1H,F	;<< needed to work w/ contig ram
+00998 04CB 0012 	DoSeqCpWord	moviw	FSR0++
+00999 04CC 001E 		movwi	FSR1++
+01000 04CD 0AE6 		incf	SequencerPtr,F
+01001 04CE 33E9 		bra	DoSeqCpByte
+01002 04CF 	;
+01003 04CF 3578 	DoSeqSetMaxCmd	lslf	Param78,W
+01004 04D0 391E 		andlw	0x1E
+01005 04D1 		LOADFSR1W	MaxTime
+01005 04D1 3E60      M		addlw	low MaxTime		addlw 	low ADDRESS
+01005 04D2 0086      M		movwf	FSR1L		movwf 	FSR1L
+01005 04D3 0187      M		clrf	FSR1H		clrf	FSR1H
+01005 04D4 3021      M		movlw	high MaxTime		movlw	high ADDRESS
+01005 04D5 3D87      M		addwfc	FSR1H,F		addwfc	FSR1H,F	;<< needed to work w/ contig ram
+01006 04D6 33F4 		bra	DoSeqCpWord
+01007 04D7 	;
+01008 04D7 0E78 	DoSeqSetLoopTimeCmd	swapf	Param78,W
+01009 04D8 39F0 		andlw	0xF0
+01010 04D9 00FA 		movwf	Param7A	;MSB of Wait time
+01011 04DA 0012 		moviw	FSR0++
+01012 04DB 0AE6 		incf	SequencerPtr,F
+01013 04DC 0020 		movlb	0	;Bank 0
+01014 04DD 00F8 		movwf	Param78
+01015 04DE 0E78 		swapf	Param78,W
+01016 04DF 390F 		andlw	0x0F
+01017 04E0 04FA 		iorwf	Param7A,F	;low nibble of MSB
+01018 04E1 0E78 		swapf	Param78,W
+01019 04E2 39F0 		andlw	0xF0
+01020 04E3 00A8 		movwf	Timer2Lo
+01021 04E4 087A 		movf	Param7A,W
+01022 04E5 00A9 		movwf	Timer2Hi
+01023 04E6 0008 		return
+01024 04E7 	;
+01025 04E7 14E5 	DoSeqWaitUntilCmd	bsf	SequencerFlags,SeqWaitForTimer
+01026 04E8 0E78 		swapf	Param78,W
+01027 04E9 39F0 		andlw	0xF0
+01028 04EA 00E8 		movwf	SequencerTime	;MSB of Wait time
+01029 04EB 0012 		moviw	FSR0++
+01030 04EC 0AE6 		incf	SequencerPtr,F
+01031 04ED 00F8 		movwf	Param78
+01032 04EE 0E78 		swapf	Param78,W
+01033 04EF 390F 		andlw	0x0F
+01034 04F0 04E8 		iorwf	SequencerTime,F
+01035 04F1 0E78 		swapf	Param78,W
+01036 04F2 39F0 		andlw	0xF0
+01037 04F3 00E7 		movwf	SequencerServoNum	;for Wait..., LSB ot Time
+01038 04F4 33AB 		bra	SeqReturn
+01039 04F5 	;
+01040 04F5 3578 	DoSeqMov2MinCmd	lslf	Param78,W
+01041 04F6 391E 		andlw	0x1E
+01042 04F7 		LOADFSR0W	MinTime
+01042 04F7 3E40      M		addlw	low MinTime		addlw 	low ADDRESS
+01042 04F8 0084      M		movwf	FSR0L		movwf 	FSR0L
+01042 04F9 0185      M		clrf	FSR0H		clrf	FSR0H
+01042 04FA 3021      M		movlw	high MinTime		movlw	high ADDRESS
+01042 04FB 3D85      M		addwfc	FSR0H,F		addwfc	FSR0H,F	;<< needed to work w/ contig ram
+01043 04FC 0012 	SeqMov2FSR0	moviw	FSR0++
+01044 04FD 00FC 		movwf	Param7C
+01045 04FE 0012 		moviw	FSR0++
+01046 04FF 00FD 		movwf	Param7D
+01047 0500 33AC 		bra	DoSeqMov2
+01048 0501 	;
+01049 0501 3578 	DoSeqMov2MaxCmd	lslf	Param78,W
+01050 0502 391E 		andlw	0x1E
+01051 0503 		LOADFSR0W	MaxTime
+01051 0503 3E60      M		addlw	low MaxTime		addlw 	low ADDRESS
+01051 0504 0084      M		movwf	FSR0L		movwf 	FSR0L
+01051 0505 0185      M		clrf	FSR0H		clrf	FSR0H
+01051 0506 3021      M		movlw	high MaxTime		movlw	high ADDRESS
+01051 0507 3D85      M		addwfc	FSR0H,F		addwfc	FSR0H,F	;<< needed to work w/ contig ram
+01052 0508 33F3 		bra	SeqMov2FSR0
+01053 0509 	;
+01054 0509 30B8 	DoSeqMov2CtrCmd	movlw	LOW kCenterPulseWidth
+01055 050A 00FC 		movwf	Param7C
+01056 050B 300B 		movlw	HIGH kCenterPulseWidth
+01057 050C 00FD 		movwf	Param7D
+01058 050D 339F 		bra	DoSeqMov2
+01059 050E 	;
+01060 050E 0878 	DoSeqWaitInPosCmd	movf	Param78,W
+01061 050F 390F 		andlw	0x0F
+01062 0510 00E7 		movwf	SequencerServoNum
+01063 0511 1565 		bsf	SequencerFlags,SeqWaitForInPos
+01064 0512 338D 		bra	SeqReturn
 SimpleServo16PS.asm                                                   Page: 31
 /Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
 
-01190 0511 0084      M		movwf	FSR0L		movwf 	FSR0L
-01190 0512 0185      M		clrf	FSR0H		clrf	FSR0H
-01190 0513 3021      M		movlw	high MaxTime		movlw	high ADDRESS
-01190 0514 3D85      M		addwfc	FSR0H,F		addwfc	FSR0H,F	;<< needed to work w/ contig ram
-01191 0515 0013 		MOVIW	FSR0--	;MaxTime+Offset+1
-01192 0516 027D 		SUBWF	Param7D,W	;7D-kMaxPulseWidth
-01193 0517 		SKPNB		;7D<Max?
-01193 0517 1C03      M		BTFSS	STATUS,C		BTFSS	STATUS,C
-01194 0518 2D22 		GOTO	ClampMinMax_1	; Yes
-01195 0519 		SKPZ		;7D=Max?
-01195 0519 1D03      M		BTFSS	STATUS,Z		BTFSS	STATUS,Z
-01196 051A 2D32 		GOTO	ClampMinMax_too	; No, its greater.
-01197 051B 0800 		MOVF	INDF0,W	; Yes, MSB was equal check LSB
-01198 051C 027C 		SUBWF	Param7C,W	;7C-kMaxPulseWidth
-01199 051D 		SKPNZ		;=kMaxPulseWidth
-01199 051D 1903      M		BTFSC	STATUS,Z		BTFSC	STATUS,Z
-01200 051E 0008 		RETURN		;Yes
-01201 051F 		SKPB		;7C<Max?
-01201 051F 1803      M		BTFSC	STATUS,C		BTFSC	STATUS,C
-01202 0520 2D32 		GOTO	ClampMinMax_too	; No
-01203 0521 0008 		RETURN		; Yes
-01204 0522 	;
-01205 0522 0A78 	ClampMinMax_1	INCF	Param78,W
-01206 0523 		LOADFSR0W	MinTime
-01206 0523 3E40      M		addlw	low MinTime		addlw 	low ADDRESS
-01206 0524 0084      M		movwf	FSR0L		movwf 	FSR0L
-01206 0525 0185      M		clrf	FSR0H		clrf	FSR0H
-01206 0526 3021      M		movlw	high MinTime		movlw	high ADDRESS
-01206 0527 3D85      M		addwfc	FSR0H,F		addwfc	FSR0H,F	;<< needed to work w/ contig ram
-01207 0528 0013 		MOVIW	FSR0--	;MinTime+Offset+1
-01208 0529 027D 		SUBWF	Param7D,W	;7D-kMinPulseWidth
-01209 052A 		SKPNB		;7D<Min?
-01209 052A 1C03      M		BTFSS	STATUS,C		BTFSS	STATUS,C
-01210 052B 2D32 		GOTO	ClampMinMax_too	; Yes
-01211 052C 		SKPZ		;=Min?
-01211 052C 1D03      M		BTFSS	STATUS,Z		BTFSS	STATUS,Z
-01212 052D 0008 		RETURN		; No, 7D>kMinPulseWidth
-01213 052E 0800 		MOVF	INDF0,W	; Yes, MSB is a match
-01214 052F 027C 		SUBWF	Param7C,W	;7C-kMinPulseWidth
-01215 0530 		SKPB		;7C>=Min?
-01215 0530 1803      M		BTFSC	STATUS,C		BTFSC	STATUS,C
-01216 0531 0008 		RETURN		; Yes
-01217 0532 	;	
-01218 0532 0012 	ClampMinMax_too	MOVIW	FSR0++
-01219 0533 00FC 		MOVWF	Param7C
-01220 0534 0800 		MOVF	INDF0,W
-01221 0535 00FD 		MOVWF	Param7D
-01222 0536 0008 		RETURN
-01223 0537 	;
-01224 0537 	;
-01225 0537 	;
-01226 0537 	;
-01227 0537 	;
-01228 0537 	;
-01229 0537 	;
-01230 0537 	;
-01231 0537 	;
-01232 0537 	;
-01233 0537 	;
-01234 0537 	;
-01235 0537 	;
-01236 0537 	;
-01237 0537 	;
-01238 0537 	;
-01239 0537 	;
-01240 0537 	;
-01241 0537 	;
-01242 0537 	;
-01243 0537 	;
-01244 0537 	;
-01245 0537 	;
-01246 0537 	;
-01247 0537 	;
-01248 0537 	;
-01249 0537 	;
-01250 0537 	;
-01251 0537 	;
-00566 0537 	;
-00567 0537 	;
-00568 0537 		org 0x800
-00569 0800 		include <SSC16PSCmds.inc>
+01065 0513 	;
+01066 0513 0020 	DoSeqStopCmd	movlb	0	;Bank 0
+01067 0514 08B7 		movf	SysMode,F
+01068 0515 		SKPZ
+01068 0515 1D03      M		BTFSS	STATUS,Z		BTFSS	STATUS,Z
+01069 0516 0008 		return
+01070 0517 0025 		movlb	5	;Bank 5
+01071 0518 1065 		bcf	SequencerFlags,SeqActive
+01072 0519 3386 		bra	SeqReturn
+01073 051A 	;
+01074 051A 1878 	DoSeqWaitForBtnCmd	btfsc	Param78,0
+01075 051B 1665 		bsf	SequencerFlags,SeqWaitForBtn2
+01076 051C 18F8 		btfsc	Param78,1
+01077 051D 16E5 		bsf	SequencerFlags,SeqWaitForBtn3
+01078 051E 3381 		bra	SeqReturn
+01079 051F 	;
+01080 051F 		if oldCode
+01192 051F 		endif
+01193 051F 	;
+01194 051F 	;=========================================================================================
+01195 051F 	; ClampInt(Param7D:Param7C,kMinPulseWidth,kMaxPulseWidth)
+01196 051F 	;
+01197 051F 	; Entry: Param7D:Param7C
+01198 051F 	; Exit: Param7D:Param7C=ClampInt(Param7D:Param7C,kMinPulseWidth,kMaxPulseWidth)
+01199 051F 	;
+01200 051F 3010 	ClampInt	MOVLW	high kMaxPulseWidth
+01201 0520 027D 		SUBWF	Param7D,W	;7D-kMaxPulseWidth
+01202 0521 		SKPNB		;7D<Max?
+01202 0521 1C03      M		BTFSS	STATUS,C		BTFSS	STATUS,C
+01203 0522 2D2C 		GOTO	ClampInt_1	; Yes
+01204 0523 		SKPZ		;7D=Max?
+01204 0523 1D03      M		BTFSS	STATUS,Z		BTFSS	STATUS,Z
+01205 0524 2D3B 		GOTO	ClampInt_tooHigh	; No, its greater.
+01206 0525 3068 		MOVLW	low kMaxPulseWidth	; Yes, MSB was equal check LSB
+01207 0526 027C 		SUBWF	Param7C,W	;7C-kMaxPulseWidth
+01208 0527 		SKPNZ		;=kMaxPulseWidth
+01208 0527 1903      M		BTFSC	STATUS,Z		BTFSC	STATUS,Z
+01209 0528 0008 		RETURN		;Yes
+01210 0529 		SKPB		;7C<Max?
+01210 0529 1803      M		BTFSC	STATUS,C		BTFSC	STATUS,C
+01211 052A 2D3B 		GOTO	ClampInt_tooHigh	; No
+01212 052B 0008 		RETURN		; Yes
+01213 052C 	;
+01214 052C 3007 	ClampInt_1	MOVLW	high kMinPulseWidth
+01215 052D 027D 		SUBWF	Param7D,W	;7D-kMinPulseWidth
+01216 052E 		SKPNB		;7D<Min?
+01216 052E 1C03      M		BTFSS	STATUS,C		BTFSS	STATUS,C
+01217 052F 2D36 		GOTO	ClampInt_tooLow	; Yes
+01218 0530 		SKPZ		;=Min?
+01218 0530 1D03      M		BTFSS	STATUS,Z		BTFSS	STATUS,Z
+01219 0531 0008 		RETURN		; No, 7D>kMinPulseWidth
+01220 0532 3008 		MOVLW	low kMinPulseWidth	; Yes, MSB is a match
+01221 0533 027C 		SUBWF	Param7C,W	;7C-kMinPulseWidth
+01222 0534 		SKPB		;7C>=Min?
+01222 0534 1803      M		BTFSC	STATUS,C		BTFSC	STATUS,C
+01223 0535 0008 		RETURN		; Yes
+01224 0536 	;	
+01225 0536 3008 	ClampInt_tooLow	MOVLW	low kMinPulseWidth
+01226 0537 00FC 		MOVWF	Param7C
+01227 0538 3007 		MOVLW	high kMinPulseWidth
+01228 0539 00FD 		MOVWF	Param7D
+01229 053A 0008 		RETURN
+01230 053B 	;
+01231 053B 3068 	ClampInt_tooHigh	MOVLW	low kMaxPulseWidth
+01232 053C 00FC 		MOVWF	Param7C
+01233 053D 3010 		MOVLW	high kMaxPulseWidth
+01234 053E 00FD 		MOVWF	Param7D
+01235 053F 0008 		RETURN
+01236 0540 	;
+01237 0540 	;=========================================================================================
+01238 0540 	; ClampMinMax(Param7D:Param7C,W = offset servo# * 2 (0,2,4..30)
+01239 0540 	;
+01240 0540 	; Entry: Param7D:Param7C, W=servo# x 2
+01241 0540 	; Exit: Param7D:Param7C=ClampInt(Param7D:Param7C,(MinTime0_7+Param78),(MaxTime0_7+Param78))
+01242 0540 	; Ram used: Param78, Param7C, Param7D, FSR0
+01243 0540 	;
+01244 0540 00F8 	ClampMinMax	MOVWF	Param78	;ServoNum * 2
+01245 0541 0A78 		INCF	Param78,W	; MSB index
+01246 0542 		LOADFSR0W	MaxTime
+01246 0542 3E60      M		addlw	low MaxTime		addlw 	low ADDRESS
+01246 0543 0084      M		movwf	FSR0L		movwf 	FSR0L
+01246 0544 0185      M		clrf	FSR0H		clrf	FSR0H
+01246 0545 3021      M		movlw	high MaxTime		movlw	high ADDRESS
+01246 0546 3D85      M		addwfc	FSR0H,F		addwfc	FSR0H,F	;<< needed to work w/ contig ram
+01247 0547 0013 		MOVIW	FSR0--	;MaxTime+Offset+1
+01248 0548 027D 		SUBWF	Param7D,W	;7D-kMaxPulseWidth
+01249 0549 		SKPNB		;7D<Max?
+01249 0549 1C03      M		BTFSS	STATUS,C		BTFSS	STATUS,C
+01250 054A 2D54 		GOTO	ClampMinMax_1	; Yes
+01251 054B 		SKPZ		;7D=Max?
+01251 054B 1D03      M		BTFSS	STATUS,Z		BTFSS	STATUS,Z
+01252 054C 2D64 		GOTO	ClampMinMax_too	; No, its greater.
+01253 054D 0800 		MOVF	INDF0,W	; Yes, MSB was equal check LSB
+01254 054E 027C 		SUBWF	Param7C,W	;7C-kMaxPulseWidth
+01255 054F 		SKPNZ		;=kMaxPulseWidth
+01255 054F 1903      M		BTFSC	STATUS,Z		BTFSC	STATUS,Z
+01256 0550 0008 		RETURN		;Yes
+01257 0551 		SKPB		;7C<Max?
+01257 0551 1803      M		BTFSC	STATUS,C		BTFSC	STATUS,C
+SimpleServo16PS.asm                                                   Page: 32
+/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
+
+01258 0552 2D64 		GOTO	ClampMinMax_too	; No
+01259 0553 0008 		RETURN		; Yes
+01260 0554 	;
+01261 0554 0A78 	ClampMinMax_1	INCF	Param78,W
+01262 0555 		LOADFSR0W	MinTime
+01262 0555 3E40      M		addlw	low MinTime		addlw 	low ADDRESS
+01262 0556 0084      M		movwf	FSR0L		movwf 	FSR0L
+01262 0557 0185      M		clrf	FSR0H		clrf	FSR0H
+01262 0558 3021      M		movlw	high MinTime		movlw	high ADDRESS
+01262 0559 3D85      M		addwfc	FSR0H,F		addwfc	FSR0H,F	;<< needed to work w/ contig ram
+01263 055A 0013 		MOVIW	FSR0--	;MinTime+Offset+1
+01264 055B 027D 		SUBWF	Param7D,W	;7D-kMinPulseWidth
+01265 055C 		SKPNB		;7D<Min?
+01265 055C 1C03      M		BTFSS	STATUS,C		BTFSS	STATUS,C
+01266 055D 2D64 		GOTO	ClampMinMax_too	; Yes
+01267 055E 		SKPZ		;=Min?
+01267 055E 1D03      M		BTFSS	STATUS,Z		BTFSS	STATUS,Z
+01268 055F 0008 		RETURN		; No, 7D>kMinPulseWidth
+01269 0560 0800 		MOVF	INDF0,W	; Yes, MSB is a match
+01270 0561 027C 		SUBWF	Param7C,W	;7C-kMinPulseWidth
+01271 0562 		SKPB		;7C>=Min?
+01271 0562 1803      M		BTFSC	STATUS,C		BTFSC	STATUS,C
+01272 0563 0008 		RETURN		; Yes
+01273 0564 	;	
+01274 0564 0012 	ClampMinMax_too	MOVIW	FSR0++
+01275 0565 00FC 		MOVWF	Param7C
+01276 0566 0800 		MOVF	INDF0,W
+01277 0567 00FD 		MOVWF	Param7D
+01278 0568 0008 		RETURN
+01279 0569 	;
+01280 0569 	;
+01281 0569 	;
+01282 0569 	;
+01283 0569 	;
+01284 0569 	;
+01285 0569 	;
+01286 0569 	;
+01287 0569 	;
+01288 0569 	;
+01289 0569 	;
+01290 0569 	;
+01291 0569 	;
+01292 0569 	;
+01293 0569 	;
+01294 0569 	;
+01295 0569 	;
+01296 0569 	;
+01297 0569 	;
+01298 0569 	;
+01299 0569 	;
+01300 0569 	;
+01301 0569 	;
+01302 0569 	;
+01303 0569 	;
+01304 0569 	;
+01305 0569 	;
+01306 0569 	;
+01307 0569 	;
+00574 0569 	;
+00575 0569 	;
+00576 0569 		org 0x800
+00577 0800 		include <SSC16PSCmds.inc>
 00001 0800 	;=========================================================================================
 00002 0800 	;
 00003 0800 	;    Filename:      SerialServoCmds.inc
@@ -3160,9 +3243,6 @@ SimpleServo16PS.asm                                                   Page: 1
 00016 0800 	; History
 00017 0800 	; 1.0.0  4/1/2021	Copied from SerialServo
 00018 0800 	;=========================================================================================
-SimpleServo16PS.asm                                                   Page: 32
-/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
-
 00019 0800 	;
 00020 0800 0081 	kCmd_SetMode	EQU	0x81	;+1 data (SysMode), return ACK
 00021 0800 0001 	kCmd_GetMode	EQU	0x01
@@ -3182,6 +3262,9 @@ SimpleServo16PS.asm                                                   Page: 1
 00035 0800 0008 	kCmd_GetSeqByte	EQU	0x08
 00036 0800 	;
 00037 0800 	;
+SimpleServo16PS.asm                                                   Page: 33
+/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
+
 00038 0800 0091 	kCmd_GetCurSpeed	EQU	0x91	;+1 Data (ServoNum) return ServoCurSpeed
 00039 0800 0092 	kCmd_GetCurPos	EQU	0x92	;+1 Data (ServoNum) Return SigOutTime
 00040 0800 0093 	kCmd_GetInPosition	EQU	0x93	;+1 Data (ServoNum) Return InPositionFlag
@@ -3262,9 +3345,6 @@ SimpleServo16PS.asm                                                   Page: 1
 00103 082B 3C80 	Dispatcher_1           sublw                  0x80
 00104 082C 	                       SKPZ
 00104 082C 1D03      M		BTFSS	STATUS,Z		BTFSS	STATUS,Z
-SimpleServo16PS.asm                                                   Page: 33
-/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
-
 00105 082D 3213 	                       bra                    Dispatcher_2
 00106 082E 0878 	                       movf                   Param78,W
 00107 082F 390F 		andlw                  0x0F
@@ -3284,6 +3364,9 @@ SimpleServo16PS.asm                                                   Page: 1
 00121 083C 0008 	                       return
 00122 083D 0008 	                       return
 00123 083E 0008 	                       return
+SimpleServo16PS.asm                                                   Page: 34
+/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
+
 00124 083F 0008 	                       return
 00125 0840 0008 	                       return
 00126 0841 	;
@@ -3360,13 +3443,10 @@ SimpleServo16PS.asm                                                   Page: 1
 00193 087D 	;
 00194 087D 	;---kCmd_SetMode----------------
 00195 087D 	; Set Mode
-00196 087D 3001 	Cmd_SetMode	movlw	kMaxMode+1
+00196 087D 3002 	Cmd_SetMode	movlw	kMaxMode+1
 00197 087E 0201 		subwf	INDF1,W
 00198 087F 		SKPB		;kMaxMode+1>Data
 00198 087F 1803      M		BTFSC	STATUS,C		BTFSC	STATUS,C
-SimpleServo16PS.asm                                                   Page: 34
-/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
-
 00199 0880 3387 		bra	HandleRXData_Rtn
 00200 0881 	;
 00201 0881 0016 		moviw	FSR1++
@@ -3386,11 +3466,14 @@ SimpleServo16PS.asm                                                   Page: 1
 00215 088A 0016 		moviw	FSR1++
 00216 088B 00FC 		movwf	Param7C
 00217 088C 0016 		moviw	FSR1++
+SimpleServo16PS.asm                                                   Page: 35
+/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
+
 00218 088D 00FD 		movwf	Param7D
 00219 088E 0878 		movf	Param78,W
 00220 088F 		mLongCall	StartMotion
 00220 088F 3184      M		movlp	StartMotion	                       movlp                  Destination
-00220 0890 240E      M		call	StartMotion	                       call                   Destination
+00220 0890 2413      M		call	StartMotion	                       call                   Destination
 00220 0891 3188      M		movlp	$	                       movlp                  $
 00221 0892 29C5 		goto	TX_ACK
 00222 0893 	;
@@ -3466,9 +3549,6 @@ SimpleServo16PS.asm                                                   Page: 1
 00272 08C9 0086      M		movwf	FSR1L		movwf 	FSR1L
 00272 08CA 0187      M		clrf	FSR1H		clrf	FSR1H
 00272 08CB 3021      M		movlw	high ServoFlags		movlw	high ADDRESS
-SimpleServo16PS.asm                                                   Page: 35
-/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
-
 00272 08CC 3D87      M		addwfc	FSR1H,F		addwfc	FSR1H,F	;<< needed to work w/ contig ram
 00273 08CD 1C79 		btfss	Param79,0	;boolean value, Enable?
 00274 08CE 3205 		bra	Cmd_SetServoEnable_1	; No, disable
@@ -3488,6 +3568,9 @@ SimpleServo16PS.asm                                                   Page: 1
 00288 08D9 0016 	Cmd_GetServoEnable	moviw	FSR1++
 00289 08DA 390F 		andlw	0x0F	;0 .. 15 only
 00290 08DB 00F8 		movwf	Param78	;Servo Number
+SimpleServo16PS.asm                                                   Page: 36
+/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
+
 00291 08DC 3907 		andlw	0x07	;2 servos per ServoFlags byte
 00292 08DD 		LOADFSR1W	ServoFlags
 00292 08DD 3E80      M		addlw	low ServoFlags		addlw 	low ADDRESS
@@ -3568,9 +3651,6 @@ SimpleServo16PS.asm                                                   Page: 1
 00339 0919 28A2 		goto	Cmd_GetWord
 00340 091A 	;
 00341 091A 	;---kCmd_SetMax_uS-------------------
-SimpleServo16PS.asm                                                   Page: 36
-/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
-
 00342 091A 	; Set ServoMax_uS
 00343 091A 0016 	Cmd_SetMax_uS	moviw	FSR1++
 00344 091B 390F 		andlw	0x0F	;0 .. 15 only
@@ -3590,6 +3670,9 @@ SimpleServo16PS.asm                                                   Page: 1
 00352 0928 2893 		goto	Cmd_SetWord7879
 00353 0929 	;
 00354 0929 	;---kCmd_GetMax_uS-----------------
+SimpleServo16PS.asm                                                   Page: 37
+/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
+
 00355 0929 	; Get ServoMax_uS
 00356 0929 0016 	Cmd_GetMax_uS	moviw	FSR1++
 00357 092A 390F 		andlw	0x0F	;0 .. 15 only
@@ -3670,9 +3753,6 @@ SimpleServo16PS.asm                                                   Page: 1
 00399 0965 0187      M		clrf	FSR1H		clrf	FSR1H
 00399 0966 3021      M		movlw	high ServoFlags		movlw	high ADDRESS
 00399 0967 3D87      M		addwfc	FSR1H,F		addwfc	FSR1H,F	;<< needed to work w/ contig ram
-SimpleServo16PS.asm                                                   Page: 37
-/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
-
 00400 0968 19F8 		BTFSC	Param78,3
 00401 0969 3203 		bra	Cmd_GetInPosition_1
 00402 096A 1881 		btfsc	INDF1,InPositionFlag0_7 ;Is in position?
@@ -3690,8 +3770,11 @@ SimpleServo16PS.asm                                                   Page: 1
 00411 0972 3189      M		movlp	$	                       movlp                  $
 00412 0973 		mLongCall	ServoParamsToEEProm
 00412 0973 3183      M		movlp	ServoParamsToEEProm	                       movlp                  Destination
-00412 0974 23ED      M		call	ServoParamsToEEProm	                       call                   Destination
+00412 0974 23F2      M		call	ServoParamsToEEProm	                       call                   Destination
 00412 0975 3189      M		movlp	$	                       movlp                  $
+SimpleServo16PS.asm                                                   Page: 38
+/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
+
 00413 0976 29C5 		goto	TX_ACK
 00414 0977 	;
 00415 0977 	;---kCmd_RestoreParams--------------
@@ -3701,21 +3784,21 @@ SimpleServo16PS.asm                                                   Page: 1
 00416 0979 3189      M		movlp	$	                       movlp                  $
 00417 097A 		mLongCall	EEPromToServoParams
 00417 097A 3183      M		movlp	EEPromToServoParams	                       movlp                  Destination
-00417 097B 23CD      M		call	EEPromToServoParams	                       call                   Destination
+00417 097B 23D2      M		call	EEPromToServoParams	                       call                   Destination
 00417 097C 3189      M		movlp	$	                       movlp                  $
 00418 097D 29C5 		goto	TX_ACK
 00419 097E 	;
 00420 097E 	;---kCmd_SaveSequencerData----------	;Save Sequencer data to EEPROM, return ACK
 00421 097E 	Cmd_SaveSequencerData	mLongCall	SequencerToEEProm
 00421 097E 3184      M		movlp	SequencerToEEProm	                       movlp                  Destination
-00421 097F 2404      M		call	SequencerToEEProm	                       call                   Destination
+00421 097F 2409      M		call	SequencerToEEProm	                       call                   Destination
 00421 0980 3189      M		movlp	$	                       movlp                  $
 00422 0981 29C5 		goto	TX_ACK
 00423 0982 	;	
 00424 0982 	;---kCmd_LoadSequencerData----------	;Load Sequencer from EEPROM, return ACK
 00425 0982 	Cmd_LoadSequencerData	mLongCall	EEPromToSequencer
 00425 0982 3183      M		movlp	EEPromToSequencer	                       movlp                  Destination
-00425 0983 23E3      M		call	EEPromToSequencer	                       call                   Destination
+00425 0983 23E8      M		call	EEPromToSequencer	                       call                   Destination
 00425 0984 3189      M		movlp	$	                       movlp                  $
 00426 0985 29C5 		goto	TX_ACK
 00427 0986 	;
@@ -3772,9 +3855,6 @@ SimpleServo16PS.asm                                                   Page: 1
 00469 09A7 0879 	Cmd_SendIDString_L1	movf	Param79,W
 00470 09A8 21AF 		call	IDString
 00471 09A9 3800 		iorlw	0x00
-SimpleServo16PS.asm                                                   Page: 38
-/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
-
 00472 09AA 		SKPNZ
 00472 09AA 1903      M		BTFSC	STATUS,Z		BTFSC	STATUS,Z
 00473 09AB 0008 		return
@@ -3794,6 +3874,9 @@ SimpleServo16PS.asm                                                   Page: 1
 00487 09B8 3431 		retlw	'1'
 00488 09B9 3436 		retlw	'6'
 00489 09BA 3450 		retlw	'P'
+SimpleServo16PS.asm                                                   Page: 39
+/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
+
 00490 09BB 3453 		retlw	'S'
 00491 09BC 3420 		retlw	' '
 00492 09BD 3476 		retlw	'v'
@@ -3816,7 +3899,7 @@ SimpleServo16PS.asm                                                   Page: 1
 00506 09CA 	;
 00507 09CA 	;=========================================================================================
 00508 09CA 	;=========================================================================================
-00570 09CA 		include <ssInit.inc>
+00578 09CA 		include <ssInit.inc>
 00001 09CA 	;=========================================================================================
 00002 09CA 	; call once
 00003 09CA 	;=========================================================================================
@@ -3874,9 +3957,6 @@ SimpleServo16PS.asm                                                   Page: 1
 00049 09EF 	;
 00050 09EF 	; Setup CCP1 & CCP2
 00051 09EF 0022 		MOVLB	0x02	; bank 2
-SimpleServo16PS.asm                                                   Page: 39
-/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
-
 00052 09F0 159D 		BSF	APFCON0,CCP2SEL
 00053 09F1 	;
 00054 09F1 0020 		MOVLB	0x00	;Bank 0
@@ -3896,6 +3976,9 @@ SimpleServo16PS.asm                                                   Page: 1
 00068 09FB 0023  a		MOVLB	BAUDCON	;banksel
 00067 09FC 		BANKSEL	BAUDCON	; bank 3
 00069 09FC 3008 		movlw	BAUDCON_Value
+SimpleServo16PS.asm                                                   Page: 40
+/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
+
 00070 09FD 009F 		movwf	BAUDCON
 00071 09FE 30CF 		MOVLW	low BaudRate
 00072 09FF 009B 		MOVWF	SPBRGL
@@ -3932,9 +4015,9 @@ SimpleServo16PS.asm                                                   Page: 1
 00103 0A14 0008 		return
 00104 0A15 	;=============================================================
 00105 0A15 	;=============================================================
-00571 0A15 	;
-00572 0A15 		org BootLoaderStart
-00573 1E00 		include <BootLoader1847.inc>
+00579 0A15 	;
+00580 0A15 		org BootLoaderStart
+00581 1E00 		include <BootLoader1847.inc>
 00001 1E00 	;************************************************
 00002 1E00 	; BootLoader for PIC16F1847
 00003 1E00 	; filename: Bootloader1847.inc
@@ -3976,9 +4059,6 @@ SimpleServo16PS.asm                                                   Page: 1
 00039 1E00 	;      if prog mem is not blank then erase block
 00040 1E00 	;    write block
 00041 1E00 	;
-SimpleServo16PS.asm                                                   Page: 40
-/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
-
 00042 1E00 	;  DataEEProm (0xFF) = 0x00
 00043 1E00 	;
 00044 1E00 	;  reset
@@ -3998,6 +4078,9 @@ SimpleServo16PS.asm                                                   Page: 1
 00058 1E00 	; Valid address range 0000 0000 .. 0000 3BFE (bootloader is at 0000 3C00 .. 0000 3FFF, 512 words)
 00059 1E00 	;************************************************
 00060 1E00 	;
+SimpleServo16PS.asm                                                   Page: 41
+/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
+
 00061 1E00 	;
 00062 1E00 		cblock 0x20
 00063 1E00 0020 		PROG_ADDR_LO                                  ;word address PC
@@ -4078,9 +4161,6 @@ SimpleServo16PS.asm                                                   Page: 1
 00137 1E0B 01A5 		clrf	IH_Addr_Hi
 00138 1E0C 01A6 		clrf	IH_Addr_Hi+1
 00139 1E0D 2746 		call	EraseSourceBuffer
-SimpleServo16PS.asm                                                   Page: 41
-/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
-
 00140 1E0E 	;
 00141 1E0E 2612 		call	BL_Parse
 00142 1E0F 	;	
@@ -4100,6 +4180,9 @@ SimpleServo16PS.asm                                                   Page: 1
 00156 1E16 26DE 		call                   FSR0_SerialBuffer
 00157 1E17 	;
 00158 1E17 102C 	BLP_L1	bcf	MSN_Done
+SimpleServo16PS.asm                                                   Page: 42
+/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
+
 00159 1E18 	;
 00160 1E18 26ED 	BLP_L2	call	GetChar
 00161 1E19 00F8 		movwf	Param78
@@ -4180,9 +4263,6 @@ SimpleServo16PS.asm                                                   Page: 1
 00229 1E53 00A7 		movwf	IH_Bytes
 00230 1E54 07AD 		addwf	ChkSum,F
 00231 1E55 0AAA 	BLP_NextState	incf	IH_State,F
-SimpleServo16PS.asm                                                   Page: 42
-/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
-
 00232 1E56 2E17 		goto	BLP_L1
 00233 1E57 	;
 00234 1E57 082B 	BLP_IHS_AddrMSB	movf	IH_TempVal,W
@@ -4202,6 +4282,9 @@ SimpleServo16PS.asm                                                   Page: 1
 00248 1E62 08A7 		movf	IH_Bytes,F
 00249 1E63 		SKPNZ		;Expecting zero length data?
 00249 1E63 1903      M		BTFSC	STATUS,Z		BTFSC	STATUS,Z
+SimpleServo16PS.asm                                                   Page: 43
+/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
+
 00250 1E64 0AAA 		incf	IH_State,F	; Yes
 00251 1E65 33EF 		bra	BLP_NextState
 00252 1E66 	;
@@ -4282,9 +4365,6 @@ SimpleServo16PS.asm                                                   Page: 1
 00324 1E96 	; Entry: DataInBuffer, IH_ByteCount, Data in SerialBuffer, 32bit address IH_Addr_Hi:IH_Addr_Lo
 00325 1E96 	; Exit: SourceBuffer, DataInBuffer, ProgWordCount, PROG_ADDR_HI:PROG_ADDR_LO
 00326 1E96 	; 
-SimpleServo16PS.asm                                                   Page: 43
-/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
-
 00327 1E96 	; check address range, max 32K program words
 00328 1E96 0825 	BufferIHData	movf	IH_Addr_Hi,W
 00329 1E97 0426 		iorwf	IH_Addr_Hi+1,W
@@ -4304,6 +4384,9 @@ SimpleServo16PS.asm                                                   Page: 1
 00341 1EA0 1CAC 		btfss	DataInBuffer	;Any old data in the buffer?
 00342 1EA1 320D 		bra	BIHD_PutInBuff	; No
 00343 1EA2 	;
+SimpleServo16PS.asm                                                   Page: 44
+/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
+
 00344 1EA2 	; Continue filling buffer or flush and add to new buffer?
 00345 1EA2 	;
 00346 1EA2 0824 		movf	IH_Addr_Lo+1,W
@@ -4384,9 +4467,6 @@ SimpleServo16PS.asm                                                   Page: 1
 00417 1ED0 0084 		movwf	FSR0L
 00418 1ED1 3021 		movlw	high SourceBuffer
 00419 1ED2 0085 		movwf	FSR0H	
-SimpleServo16PS.asm                                                   Page: 44
-/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
-
 00420 1ED3 26E3 		call                   FSR1_DestBuff          ;old data
 00421 1ED4 272C 		call	CompareBlock
 00422 1ED5 	;
@@ -4406,6 +4486,9 @@ SimpleServo16PS.asm                                                   Page: 1
 00436 1EDE 	;---------------------
 00437 1EDE 3080 	FSR0_SerialBuffer      movlw	low SerialBuffer
 00438 1EDF 0084 		movwf	FSR0L
+SimpleServo16PS.asm                                                   Page: 45
+/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
+
 00439 1EE0 3021 		movlw	high SerialBuffer
 00440 1EE1 0085 		movwf	FSR0H
 00441 1EE2 0008 		return
@@ -4486,9 +4569,6 @@ SimpleServo16PS.asm                                                   Page: 1
 00515 1F0D 	;==============================================
 00516 1F0D 	; Clear EEProm(255)
 00517 1F0D 	;
-SimpleServo16PS.asm                                                   Page: 45
-/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
-
 00518 1F0D 	WriteEEData:
 00519 1F0D 0023 		movlb	EEADRL
 00520 1F0E 30FF 		MOVLW	0xFF
@@ -4508,6 +4588,9 @@ SimpleServo16PS.asm                                                   Page: 1
 00534 1F1C 1115 		bcf	EECON1,WREN
 00535 1F1D 0020 		movlb	0
 00536 1F1E 0008 		return
+SimpleServo16PS.asm                                                   Page: 46
+/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
+
 00537 1F1F 	;
 00538 1F1F 	;==============================================
 00539 1F1F 	; Test if block is erased
@@ -4588,9 +4671,6 @@ SimpleServo16PS.asm                                                   Page: 1
 00608 1F48 3020 	EraseBlock	movlw	BlockWords
 00609 1F49 00F9 		movwf	Param79
 00610 1F4A 30FF 	EraseBlock_L1	movlw	0xFF
-SimpleServo16PS.asm                                                   Page: 46
-/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
-
 00611 1F4B 001E 		movwi	FSR1++
 00612 1F4C 303F 		movlw	0x3F
 00613 1F4D 001E 		movwi	FSR1++
@@ -4610,6 +4690,9 @@ SimpleServo16PS.asm                                                   Page: 1
 00627 1F54 3020 		movlw	BlockWords	;Block is .32 words
 00628 1F55 00F9 		movwf	Param79
 00629 1F56 1415 	ReadProgBlock_L1	BSF	EECON1,RD	; Initiate read
+SimpleServo16PS.asm                                                   Page: 47
+/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
+
 00630 1F57 0000 		NOP		; skipped
 00631 1F58 0000 		NOP		; do nothing
 00632 1F59 0813 		MOVF	EEDATL,W	; Get LSB of word
@@ -4690,9 +4773,6 @@ SimpleServo16PS.asm                                                   Page: 1
 00707 1F8A 3055 		movlw	0x55	; Start of required write sequence:
 00708 1F8B 0096 		movwf	EECON2
 00709 1F8C 30AA 		movlw	0xAA
-SimpleServo16PS.asm                                                   Page: 47
-/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
-
 00710 1F8D 0096 		movwf	EECON2
 00711 1F8E 1495 		bsf	EECON1,WR	; Set WR bit to begin write to latches
 00712 1F8F 0000 		nop
@@ -4712,6 +4792,9 @@ SimpleServo16PS.asm                                                   Page: 1
 00726 1F9B 1115 		bcf	EECON1,WREN
 00727 1F9C 	;
 00728 1F9C 0020 	WriteProgBlock_end	movlb	0
+SimpleServo16PS.asm                                                   Page: 48
+/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
+
 00729 1F9D 0008 		return	
 00730 1F9E 	;
 00731 1F9E 	;============================================================
@@ -4792,9 +4875,6 @@ SimpleServo16PS.asm                                                   Page: 1
 00812 1FC8 	 
 00813 1FC8 	 
 00814 1FC8 	 
-SimpleServo16PS.asm                                                   Page: 48
-/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
-
 00815 1FC8 	 
 00816 1FC8 	 
 00817 1FC8 	 
@@ -4807,18 +4887,21 @@ SimpleServo16PS.asm                                                   Page: 1
 00824 1FC8 	 
 00825 1FC8 	 
 00826 1FC8 	 
-00574 1FC8 	;
-00575 1FC8 	;
-00576 1FC8 	;
-00577 1FC8 	;
-00578 1FC8 		END
+00582 1FC8 	;
+00583 1FC8 	;
+00584 1FC8 	;
+00585 1FC8 	;
+00586 1FC8 		END
 
 X-Ref Table
+SimpleServo16PS.asm   X-Ref Table                                        Page: 49
+/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
+
 _C	STATUS,C	IdleServos_L1
 _Z	STATUS,Z	IdleServos_Accel_2, WriteProgBlock_L1
 AccelComplete0_7	0000 	IdleServos_Accel, AccelDone, StartMotion
 AccelComplete8_15	0004 	IdleServos_Accel_1, AccelDone, StartMotion
-AccelDone ^	0342 	IdleServos_Accel_2
+AccelDone ^	0347 	IdleServos_Accel_2
 AccelRampLen	21E0 	IdleServos_Accel_2, StartMotion
 AddrChngDwell	0004 	ISR_ServoCCP1, IRQ_Servo1_InAct, IRQ_Servo1_OL, IRQ_Servo_Next
 AddressMask	00E0 	BufferIHData, BIHD_PutInBuff
@@ -4894,19 +4977,16 @@ CCPR1L	0291 	IRQ_Servo1_PulseOrDwell, IRQ_Servo1_InAct, IRQ_Servo1_OL, IRQ_Servo
 CCPR2H	0299 	IRQ_Servo_Next, IRQ_Servo2_PulseOrDwell, IRQ_Servo2_InAct, IRQ_Servo2_OL
 		StartServos
 CCPR2L	0298 	IRQ_Servo_Next, IRQ_Servo2_PulseOrDwell, IRQ_Servo2_InAct, IRQ_Servo2_OL
-SimpleServo16PS.asm   X-Ref Table                                        Page: 49
-/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
-
 		StartServos
 CFGS	0006 	EERead, EEWrite, ReadEEData, WriteEEData, ReadProgBlock, EraseProgBlock
 		WriteProgBlock
 ChkSum	002D 	BootLoaderStart, BL_ParseNextLine, BLP_SaveIH_Length, BLP_IHS_AddrMSB
 		BLP_IHS_AddrLSB, BLP_IHS_DataType, BLP_IHS_Data, BLP_IHS_CSum
-ClampInt_1 ^	04FA 	DoSeqWaitForBtnCmd
-ClampInt_tooHigh ^	0509 	DoSeqWaitForBtnCmd
-ClampInt_tooLow ^	0504 	ClampInt_1
-ClampMinMax_1 ^	0522 	ClampInt_tooHigh
-ClampMinMax_too ^	0532 	ClampInt_tooHigh, ClampMinMax_1
+ClampInt_1 ^	052C 	DoSeqWaitForBtnCmd
+ClampInt_tooHigh ^	053B 	DoSeqWaitForBtnCmd
+ClampInt_tooLow ^	0536 	ClampInt_1
+ClampMinMax_1 ^	0554 	ClampInt_tooHigh
+ClampMinMax_too ^	0564 	ClampInt_tooHigh, ClampMinMax_1
 ClearRam ^	0030 	InitializeIO
 ClearRam_2 ^	0041 	ClearRam
 ClearRam_L2 ^	004A 	ClearRam, ClearRam_2, ClearRam_L2
@@ -4916,6 +4996,9 @@ Cmd_GetCmdPos ^	0898 	HandleRXData_1
 Cmd_GetCurPos ^	0954 	Dispatcher_4
 Cmd_GetCurSpeed ^	094A 	Dispatcher_4
 Cmd_GetInPosition ^	095F 	Dispatcher_4
+SimpleServo16PS.asm   X-Ref Table                                        Page: 50
+/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
+
 Cmd_GetInPosition_1 ^	096D 	Cmd_GetInPosition
 Cmd_GetMax_uS ^	0929 	HandleRXData_1
 Cmd_GetMaxSpeed ^	08F6 	HandleRXData_1
@@ -4983,27 +5066,29 @@ Dispatcher_3 ^	0847 	Dispatcher_2
 Dispatcher_4 ^	084D 	Dispatcher_3
 Dispatcher_5 ^	0865 	Dispatcher_4
 Dispatcher_6 ^	086D 	Dispatcher_5
-DoSeqCpByte ^	0486 	DoSeqSetAccelCmd, DoSeqCpWord
-DoSeqCpWord ^	0499 	DoSeqSetMaxCmd
-DoSeqDone ^	0467 	DoSequenceCmd
-DoSeqMov2 ^	047B 	SeqMov2FSR0, DoSeqMov2CtrCmd
-DoSeqMov2CtrCmd ^	04D7 	DoSequenceCmd
-DoSeqMov2MaxCmd ^	04CF 	DoSequenceCmd
-DoSeqMov2MinCmd ^	04C3 	DoSequenceCmd
-DoSeqMoveCmd ^	0470 	DoSequenceCmd
-DoSeqSetAccelCmd ^	048A 	DoSequenceCmd
-DoSeqSetLoopTimeCmd ^	04A5 	DoSequenceCmd
-DoSeqSetMaxCmd ^	049D 	DoSequenceCmd
-DoSeqSetMinCmd ^	0492 	DoSequenceCmd
-DoSeqSetSpeedCmd ^	047F 	DoSequenceCmd
-SimpleServo16PS.asm   X-Ref Table                                        Page: 50
-/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
-
-DoSeqStopCmd ^	04E1 	DoSequenceCmd
-DoSequenceCmd ^	0446 	IdleServos
-DoSeqWaitForBtnCmd ^	04E8 	DoSequenceCmd
-DoSeqWaitInPosCmd ^	04DC 	DoSequenceCmd
-DoSeqWaitUntilCmd ^	04B5 	DoSequenceCmd
+DoSeqCpByte ^	04B8 	DoSeqSetAccelCmd, DoSeqCpWord
+DoSeqCpWord ^	04CB 	DoSeqSetMaxCmd
+DoSeqDone ^	0499 	DoSequenceCmd, DoSequenceCmd_4
+DoSeqMov2 ^	04AD 	SeqMov2FSR0, DoSeqMov2CtrCmd
+DoSeqMov2CtrCmd ^	0509 	DoSequenceCmd_4
+DoSeqMov2MaxCmd ^	0501 	DoSequenceCmd_4
+DoSeqMov2MinCmd ^	04F5 	DoSequenceCmd_4
+DoSeqMoveCmd ^	04A2 	DoSequenceCmd_4
+DoSeqSetAccelCmd ^	04BC 	DoSequenceCmd_4
+DoSeqSetLoopTimeCmd ^	04D7 	DoSequenceCmd_4
+DoSeqSetMaxCmd ^	04CF 	DoSequenceCmd_4
+DoSeqSetMinCmd ^	04C4 	DoSequenceCmd_4
+DoSeqSetSpeedCmd ^	04B1 	DoSequenceCmd_4
+DoSeqStopCmd ^	0513 	DoSequenceCmd_4
+DoSequenceCmd ^	044B 	IdleServos
+DoSequenceCmd_1 ^	045C 	DoSequenceCmd
+DoSequenceCmd_1a ^	046A 	DoSequenceCmd_1
+DoSequenceCmd_2 ^	046D 	DoSequenceCmd_1
+DoSequenceCmd_3 ^	0475 	DoSequenceCmd_2
+DoSequenceCmd_4 ^	047D 	DoSequenceCmd_3
+DoSeqWaitForBtnCmd ^	051A 	DoSequenceCmd_4
+DoSeqWaitInPosCmd ^	050E 	DoSequenceCmd_4
+DoSeqWaitUntilCmd ^	04E7 	DoSequenceCmd_4
 DwellTime	21B0 	IRQ_Servo1_PulseOrDwell, IRQ_Servo1_OL, IRQ_Servo2_PulseOrDwell, IRQ_Servo2_OL
 EEAddrTemp	0024 	CopyToRam, CopyToRam_L1, SaveParams, SaveParams_L1, DelayWuS_Loop
 		EERead, EEWriteW, EEWrite, EEPromToServoParams, ETSP_L1, EEPromToSequencer, ServoParamsToEEProm
@@ -5013,6 +5098,9 @@ EEADRH	0192 	LoadProgAddr
 EEADRL	0191 	ReadEEData, WriteEEData, ReadProgBlock_1, LoadProgAddr, WriteProgBlock_L1
 EECON1	0195 	EERead, EEWrite, EEWriteLoop, ReadEEData, WriteEEData, WriteEEData_L1
 		ReadProgBlock, ReadProgBlock_L1, EraseProgBlock, WriteProgBlock, WriteProgBlock_L1
+SimpleServo16PS.asm   X-Ref Table                                        Page: 51
+/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
+
 		WriteProgBlock_Wr
 EECON2	0196 	EEWrite, WriteEEData, EraseProgBlock, WriteProgBlock_L1, WriteProgBlock_Wr
 EEDAT	0193 	EERead, EEWrite
@@ -5021,8 +5109,8 @@ EEDATH	0194 	ReadProgBlock_L1, WriteProgBlock_L1
 EEDATL	0193 	ReadEEData, WriteEEData, ReadProgBlock_L1, WriteProgBlock_L1
 EEPGD	0007 	EERead, EEWrite, ReadEEData, WriteEEData, ReadProgBlock, EraseProgBlock
 		WriteProgBlock
-EEPromToSequencer ^	03E3 	ServoInit16, Cmd_LoadSequencerData
-EEPromToServoParams ^	03CD 	ServoInit16, Cmd_RestoreParams
+EEPromToSequencer ^	03E8 	ServoInit16, Cmd_LoadSequencerData
+EEPromToServoParams ^	03D2 	ServoInit16, Cmd_RestoreParams
 EERead ^	009A 	CopyToRam_L1, ETSP_L1
 EEWrite ^	00A4 	SaveParams_L1, SPTE_L1
 EEWriteLoop ^	00B7 	EEWriteLoop
@@ -5032,7 +5120,7 @@ Enable8_15	LATA,4	StartServos
 EraseBlock_L1 ^	1F4A 	EraseBlock_L1
 EraseProgBlock ^	1F63 	BLP_WriteBuffer
 EraseSourceBuffer ^	1F46 	BootLoaderStart, BLP_WriteBuffer_end
-ETSP_L1 ^	03DD 	EEPromToServoParams, ETSP_L1, EEPromToSequencer
+ETSP_L1 ^	03E2 	EEPromToServoParams, ETSP_L1, EEPromToSequencer
 F	0001 	ProgStartVector, ClearRam, ClearRam_L2, CopyToRam_L1, SaveParams_L1, DecTimer
 		DelayWuS_Loop, StoreSerIn, GetSerIn, StoreSerOut, GetSerOut, RS232_Parse, RS232_Parse_Byte
 		RS232_Parse_SALo, RS232_Parse_SALo_end, RS232_Parse_DALo_End, RS232_Parse_L1, RS232_ClearTXData_L1
@@ -5041,16 +5129,16 @@ F	0001 	ProgStartVector, ClearRam, ClearRam_L2, CopyToRam_L1, SaveParams_L1, Dec
 		IdleServos_DecAcc, IdleServos_Minus, IdleServos_DisInt, IdleServos_MovPlus, IdleServos_IncAcc
 		IdleServos_Plus, IdleServos_Accel_2, SaveSpeed, GetSpeed, GetMaxSpeed, GetAccelValue
 		SetFSR0ToServoFlags2, SetFSR0ToServoFlags, ServoInit16, StoreWord16Times_L1, StoreXTimes_L1
-		ETSP_L1, SPTE_L1, StartMotion, DoSequenceCmd, DoSeqDone, DoSeqMoveCmd, DoSeqSetSpeedCmd
-		DoSeqCpByte, DoSeqSetAccelCmd, DoSeqSetMinCmd, DoSeqCpWord, DoSeqSetMaxCmd, DoSeqSetLoopTimeCmd
-		DoSeqWaitUntilCmd, DoSeqMov2MinCmd, DoSeqMov2MaxCmd, DoSeqStopCmd, ClampInt_tooHigh
-		ClampMinMax_1, Cmd_GetCmdPos, Cmd_SetAccel, Cmd_GetAccel, Cmd_SetServoEnable, Cmd_GetServoEnable
-		Cmd_SetMaxSpeed, Cmd_GetMaxSpeed, Cmd_SetMin_uS, Cmd_GetMin_uS, Cmd_SetMax_uS, Cmd_GetMax_uS
-		Cmd_SetSeqByte, Cmd_GetSeqByte, Cmd_GetCurSpeed, Cmd_GetCurPos, Cmd_GetInPosition
-		Cmd_SendIDString_L1, BLP_TestNum, BLP_TestNum_1, BLP_TestNum_2, BLP_SaveIH_Length
-		BLP_NextState, BLP_IHS_AddrMSB, BLP_IHS_AddrLSB, BLP_IHS_DataType, BLP_IHS_Data
-		BufferIHData, BIHD_PutInBuff_E2, BIHD_PutInBuff_L1, TestErased_L1, CB_Next, EraseBlock_L1
-		ReadProgBlock_L1, ReadProgBlock_1, WriteProgBlock_L1
+		ETSP_L1, SPTE_L1, StartMotion, DoSequenceCmd_1, DoSequenceCmd_4, DoSeqDone, DoSeqMoveCmd
+		DoSeqSetSpeedCmd, DoSeqCpByte, DoSeqSetAccelCmd, DoSeqSetMinCmd, DoSeqCpWord, DoSeqSetMaxCmd
+		DoSeqSetLoopTimeCmd, DoSeqWaitUntilCmd, DoSeqMov2MinCmd, DoSeqMov2MaxCmd, DoSeqStopCmd
+		ClampInt_tooHigh, ClampMinMax_1, Cmd_GetCmdPos, Cmd_SetAccel, Cmd_GetAccel, Cmd_SetServoEnable
+		Cmd_GetServoEnable, Cmd_SetMaxSpeed, Cmd_GetMaxSpeed, Cmd_SetMin_uS, Cmd_GetMin_uS
+		Cmd_SetMax_uS, Cmd_GetMax_uS, Cmd_SetSeqByte, Cmd_GetSeqByte, Cmd_GetCurSpeed, Cmd_GetCurPos
+		Cmd_GetInPosition, Cmd_SendIDString_L1, BLP_TestNum, BLP_TestNum_1, BLP_TestNum_2
+		BLP_SaveIH_Length, BLP_NextState, BLP_IHS_AddrMSB, BLP_IHS_AddrLSB, BLP_IHS_DataType
+		BLP_IHS_Data, BufferIHData, BIHD_PutInBuff_E2, BIHD_PutInBuff_L1, TestErased_L1
+		CB_Next, EraseBlock_L1, ReadProgBlock_L1, ReadProgBlock_1, WriteProgBlock_L1
 FERR	0002 	RX_TheByte_Err, GetChar_Err
 FirstRAMParam	SysMode	CopyToRam, SaveParams
 FlushInBuff ^	00F5 	RS232_Parse_Error
@@ -5062,15 +5150,15 @@ FSR0H	0005 	ProgStartVector, ClearRam, CopyToRam, SaveParams, DecTimer, StoreSer
 		IRQ_Servo1_OL, IRQ_Servo2_PulseOrDwell, IRQ_Servo2_OL, IdleServos_Update, IdleServos_Accel_2
 		SaveSpeed, GetSpeed, GetMaxSpeed, GetAccelValue, SetFSR0ToServoFlags2, SetFSR0ToServoFlags
 		ServoInit16, EEPromToServoParams, EEPromToSequencer, ServoParamsToEEProm, SequencerToEEProm
-		StartMotion, DoSequenceCmd, DoSeqMov2MinCmd, DoSeqMov2MaxCmd, ClampInt_tooHigh
-		ClampMinMax_1, BLP_WriteBuffer, FSR0_SerialBuffer
+		StartMotion, DoSequenceCmd_1, DoSequenceCmd_4, DoSeqMov2MinCmd, DoSeqMov2MaxCmd
+		ClampInt_tooHigh, ClampMinMax_1, BLP_WriteBuffer, FSR0_SerialBuffer
 FSR0L	0004 	ProgStartVector, CopyToRam, CopyToRam_L1, SaveParams, SaveParams_L1, DecTimer
 		GetSerIn, GetSerOut, RS232_Parse_DALo_End, RS232_Parse_Data_end, IRQ_Servo1_PulseOrDwell
 		IRQ_Servo1_OL, IRQ_Servo2_PulseOrDwell, IRQ_Servo2_OL, IdleServos_Update, IdleServos_Accel_2
 		SaveSpeed, GetSpeed, GetMaxSpeed, GetAccelValue, SetFSR0ToServoFlags2, SetFSR0ToServoFlags
 		ServoInit16, EEPromToServoParams, EEPromToSequencer, ServoParamsToEEProm, SequencerToEEProm
-		StartMotion, DoSequenceCmd, DoSeqMov2MinCmd, DoSeqMov2MaxCmd, ClampInt_tooHigh
-		ClampMinMax_1, BLP_WriteBuffer, FSR0_SerialBuffer
+		StartMotion, DoSequenceCmd_1, DoSequenceCmd_4, DoSeqMov2MinCmd, DoSeqMov2MaxCmd
+		ClampInt_tooHigh, ClampMinMax_1, BLP_WriteBuffer, FSR0_SerialBuffer
 FSR1	0006 	HandleRXData_1
 FSR1_DestBuff ^	1EE3 	BLP_WriteBuffer
 FSR1_SourceBuffer ^	1EE8 	BLP_WriteBuffer, EraseSourceBuffer
@@ -5087,40 +5175,40 @@ FSR1L	0006 	RS232_Parse_Data_end, RS232_ClearTXData, RS232_Send, IRQ_Servo1_Puls
 		Cmd_SetMaxSpeed, Cmd_GetMaxSpeed, Cmd_SetMin_uS, Cmd_GetMin_uS, Cmd_SetMax_uS, Cmd_GetMax_uS
 		Cmd_SetSeqByte, Cmd_GetSeqByte, Cmd_GetCurSpeed, Cmd_GetCurPos, Cmd_GetInPosition
 		BIHD_PutInBuff_E2, FSR1_DestBuff, FSR1_SourceBuffer
-GetAccelValue ^	0361 	IdleServos_Accel_2
+GetAccelValue ^	0366 	IdleServos_Accel_2
 GetChar ^	1EED 	BLP_L2, GetChar, GetChar_Err
 GetChar_Err ^	1EF8 	GetChar
-GetMaxSpeed ^	0359 	IdleServos_Accel_2
+GetMaxSpeed ^	035E 	IdleServos_Accel_2
 GetSerIn ^	00E4 	RS232_Parse_Byte
 GetSerIn_End ^	00F3 	GetSerIn
 GetSerInBytes ^	00FB 	MainLoop
 GetSerOut ^	0119 	ML_Ser_Out
 GetSerOut_End ^	0128 	GetSerOut
-GetSpeed ^	0351 	IdleServos_Update, IdleServos_MovPlus, IdleServos_Accel_2
+GetSpeed ^	0356 	IdleServos_Update, IdleServos_MovPlus, IdleServos_Accel_2
 GIE	0007 	EEWrite, IdleServos_DisInt, InitializeIO, InitializeBLIO
-SimpleServo16PS.asm   X-Ref Table                                        Page: 51
-/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
-
 HandleRXData ^	0804 	MainLoop
 HandleRXData_1 ^	080A 	HandleRXData
 HandleRXData_Rtn ^	0808 	Cmd_SetMode
 IdleServos ^	029D 	ML_Ser_End
-IdleServos_Accel ^	031D 	IdleServos_Update
-IdleServos_Accel_1 ^	0323 	IdleServos_Accel
-IdleServos_Accel_2 ^	0325 	IdleServos_Accel
-IdleServos_Clamp ^	02E9 	IdleServos_Plus
-IdleServos_DecAcc ^	02E0 	IdleServos_L1
-IdleServos_DisInt ^	02EA 	IdleServos_DisInt
-IdleServos_IncAcc ^	030A 	IdleServos_L2
-IdleServos_InPos ^	0314 	IdleServos_Update
-IdleServos_L1 ^	02D9 	IdleServos_DecAcc
-IdleServos_L2 ^	0303 	IdleServos_IncAcc
-IdleServos_Minus ^	02E2 	IdleServos_Update, IdleServos_L1
-IdleServos_MovPlus ^	02FA 	IdleServos_Update
-IdleServos_Next ^	0319 	IdleServos, IdleServos8_15, IdleServos_DisInt
-IdleServos_Plus ^	030C 	IdleServos_MovPlus, IdleServos_L2
-IdleServos_Update ^	02AC 	IdleServos
-IdleServos8_15 ^	02A8 	IdleServos
+IdleServos_Accel ^	0322 	IdleServos_Update
+IdleServos_Accel_1 ^	0328 	IdleServos_Accel
+IdleServos_Accel_2 ^	032A 	IdleServos_Accel
+IdleServos_Clamp ^	02EE 	IdleServos_Plus
+IdleServos_DecAcc ^	02E5 	IdleServos_L1
+IdleServos_DisInt ^	02EF 	IdleServos_DisInt
+IdleServos_IncAcc ^	030F 	IdleServos_L2
+IdleServos_InPos ^	0319 	IdleServos_Update
+IdleServos_L1 ^	02DE 	IdleServos_DecAcc
+IdleServos_L2 ^	0308 	IdleServos_IncAcc
+SimpleServo16PS.asm   X-Ref Table                                        Page: 52
+/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
+
+IdleServos_Minus ^	02E7 	IdleServos_Update, IdleServos_L1
+IdleServos_MovPlus ^	02FF 	IdleServos_Update
+IdleServos_Next ^	031E 	IdleServos, IdleServos8_15, IdleServos_DisInt
+IdleServos_Plus ^	0311 	IdleServos_MovPlus, IdleServos_L2
+IdleServos_Update ^	02B1 	IdleServos
+IdleServos8_15 ^	02AD 	IdleServos
 IDString ^	09AF 	Cmd_SendIDString_L1
 IH_Ack	002A 	BootLoaderStart, BLPV_EndCmd, BLPV_Exit_Ack
 IH_Addr_Hi	0025 	BootLoaderStart, BLPV_HighAddr, BufferIHData
@@ -5142,16 +5230,18 @@ IHS_Length	0001 	BLP_L2
 INDF0	0000 	ProgStartVector, ClearRam_L2, DecTimer, StoreSerIn, GetSerIn, StoreSerOut
 		GetSerOut, RS232_Parse_DALo_End, IdleServos, IdleServos8_15, IdleServos_Update
 		IdleServos_MovPlus, IdleServos_InPos, IdleServos_Accel, IdleServos_Accel_1, IdleServos_Accel_2
-		AccelDone, SaveSpeed, GetSpeed, GetMaxSpeed, GetAccelValue, StartMotion, ClampInt_tooHigh
-		ClampMinMax_1, ClampMinMax_too, Cmd_GetServoEnable, Cmd_GetServoEnable_1, Cmd_GetInPosition
-		Cmd_GetInPosition_1
+		AccelDone, SaveSpeed, GetSpeed, GetMaxSpeed, GetAccelValue, StartMotion, DoSequenceCmd_1
+		DoSequenceCmd_1a, ClampInt_tooHigh, ClampMinMax_1, ClampMinMax_too, Cmd_GetServoEnable
+		Cmd_GetServoEnable_1, Cmd_GetInPosition, Cmd_GetInPosition_1
 INDF1	0001 	IRQ_Servo1_PulseOrDwell, IRQ_Servo_Next, IRQ_Servo2_PulseOrDwell, IdleServos_Update
 		IdleServos_Minus, IdleServos_Plus, Cmd_SetMode, Cmd_SetServoEnable, Cmd_SetServoEnable_1
 		Cmd_GetServoEnable, Cmd_GetServoEnable_1, Cmd_GetInPosition, Cmd_GetInPosition_1
 InitializeBLIO ^	1F9E 	BootLoaderStart
 InitializeIO ^	09CA 	start
-InPositionFlag0_7	0001 	IdleServos_Update, IdleServos_InPos, StartMotion, Cmd_GetInPosition
-InPositionFlag8_15	0005 	IdleServos_Update, IdleServos_InPos, StartMotion, Cmd_GetInPosition_1
+InPositionFlag0_7	0001 	IdleServos_Update, IdleServos_InPos, StartMotion, DoSequenceCmd_1a
+		Cmd_GetInPosition
+InPositionFlag8_15	0005 	IdleServos_Update, IdleServos_InPos, StartMotion, DoSequenceCmd_1
+		Cmd_GetInPosition_1
 INTCON	000B 	EEWrite, IdleServos_DisInt, InitializeIO, InitializeBLIO
 IRQ_Ser_End ^	002A 	SystemTick_end
 IRQ_Servo_Next ^	022C 	ISR_ServoCCP1
@@ -5168,12 +5258,15 @@ IRQ_Servo2_X ^	029A 	ISR_ServoCCP2, IRQ_Servo2_PulseOrDwell
 ISR_ServoCCP1 ^	01E1 	IRQ_Ser_End
 ISR_ServoCCP2 ^	0257 	IRQ_Ser_End
 kCenterPulseWidth	0BB8 	ServoInit16, DoSeqMov2CtrCmd
-kMaxMode	0000 	Cmd_SetMode
+kMaxMode	0001 	Cmd_SetMode
 kMaxPulseWidth	1068 	ServoInit16, DoSeqWaitForBtnCmd, ClampInt_tooHigh
 kMinPulseWidth	0708 	ServoInit16, ClampInt_1, ClampInt_tooLow
 kRS232_MasterAddr	0001 	InitializeBLIO
 kRS232_SlaveAddr	0002 	InitializeBLIO
 kRS232SyncByteValue	00DD 	RS232_Parse_Byte, RS232_Parse_Sync2
+kSeqCmd_Mov2Max	0090 	InitializeBLIO
+kSeqCmd_Mov2Min	0080 	InitializeBLIO
+kSeqCmd_WaitInPos	00B0 	InitializeBLIO
 kSeqMemSize	0080 	InitializeBLIO, DoSequenceCmd
 kServoAddrTime	01F4 	IRQ_Servo_Next
 kServoDwellTime	1388 	ServoInit16
@@ -5200,9 +5293,6 @@ ML_Ser_End ^	01DC 	ML_Ser_Out
 ML_Ser_Out ^	01D5 	ML_1
 MovingFWD0_7	0003 	IdleServos_Update, IdleServos_MovPlus
 MovingFWD8_15	0007 	IdleServos_Update, IdleServos_MovPlus
-SimpleServo16PS.asm   X-Ref Table                                        Page: 52
-/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
-
 MSN_Done	IH_Flags,0	BootLoaderStart, BLP_L1, BLP_TestNum_1
 NOT_WPUEN	0007 	InitializeIO, InitializeBLIO
 nvFirstParamByte	nvSysMode	InitializeBLIO, CopyToRam, SaveParams
@@ -5212,6 +5302,9 @@ nvMinTime	0025 	InitializeBLIO
 nvRS232_MasterAddr	0001 	InitializeBLIO
 nvRS232_SlaveAddr	0002 	InitializeBLIO
 nvSequencerData	006D 	InitializeBLIO, EEPromToSequencer, SequencerToEEProm
+SimpleServo16PS.asm   X-Ref Table                                        Page: 53
+/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
+
 nvServoAccelValue	0015 	InitializeBLIO
 nvServoFlags	0065 	InitializeBLIO
 nvServoMaxSpeed	0005 	InitializeBLIO, EEPromToServoParams, ServoParamsToEEProm
@@ -5230,14 +5323,15 @@ Param78	0078 	StoreSerIn, GetSerIn, StoreSerOut, GetSerOut, RS232_Parse_Byte, RS
 		IdleServos_L1, IdleServos_DecAcc, IdleServos_Minus, IdleServos_MovPlus, IdleServos_L2
 		IdleServos_IncAcc, IdleServos_Plus, IdleServos_Accel_2, SaveSpeed, ServoInit16
 		StoreWord16Times_L1, Store16Times, StoreXTimes, Store8Times, StartMotion, DoSequenceCmd
-		DoSeqMov2, DoSeqSetSpeedCmd, DoSeqSetAccelCmd, DoSeqSetMinCmd, DoSeqSetMaxCmd, DoSeqSetLoopTimeCmd
-		DoSeqWaitUntilCmd, DoSeqMov2MinCmd, DoSeqMov2MaxCmd, DoSeqWaitInPosCmd, DoSeqWaitForBtnCmd
-		ClampInt_tooHigh, ClampMinMax_1, HandleRXData_1, Dispatcher_1, Dispatcher_2, Dispatcher_3
-		Dispatcher_4, Dispatcher_5, Cmd_SetCmdPos, Cmd_GetCmdPos, Cmd_SetAccel, Cmd_GetAccel
-		Cmd_SetServoEnable, Cmd_SetServoEnable_1, Cmd_GetServoEnable, Cmd_SetMaxSpeed, Cmd_GetMaxSpeed
-		Cmd_SetMin_uS, Cmd_GetMin_uS, Cmd_SetMax_uS, Cmd_GetMax_uS, Cmd_SetSeqByte, Cmd_GetSeqByte
-		Cmd_GetCurSpeed, Cmd_GetCurPos, Cmd_GetInPosition, BLP_L2, BLP_TestNum, BLP_TestNum_1
-		BLP_TestNum_2, BLP_IHS_CSum, BufferIHData, CompareBlock_L1, CB_NotBlank
+		DoSequenceCmd_4, DoSeqMov2, DoSeqSetSpeedCmd, DoSeqSetAccelCmd, DoSeqSetMinCmd
+		DoSeqSetMaxCmd, DoSeqSetLoopTimeCmd, DoSeqWaitUntilCmd, DoSeqMov2MinCmd, DoSeqMov2MaxCmd
+		DoSeqWaitInPosCmd, DoSeqWaitForBtnCmd, ClampInt_tooHigh, ClampMinMax_1, HandleRXData_1
+		Dispatcher_1, Dispatcher_2, Dispatcher_3, Dispatcher_4, Dispatcher_5, Cmd_SetCmdPos
+		Cmd_GetCmdPos, Cmd_SetAccel, Cmd_GetAccel, Cmd_SetServoEnable, Cmd_SetServoEnable_1
+		Cmd_GetServoEnable, Cmd_SetMaxSpeed, Cmd_GetMaxSpeed, Cmd_SetMin_uS, Cmd_GetMin_uS
+		Cmd_SetMax_uS, Cmd_GetMax_uS, Cmd_SetSeqByte, Cmd_GetSeqByte, Cmd_GetCurSpeed, Cmd_GetCurPos
+		Cmd_GetInPosition, BLP_L2, BLP_TestNum, BLP_TestNum_1, BLP_TestNum_2, BLP_IHS_CSum
+		BufferIHData, CompareBlock_L1, CB_NotBlank
 Param79	0079 	RS232_Send, RS232_Send_L1, IdleServos_Accel_2, ServoInit16, StoreWord16Times_L1
 		StoreXTimes, StoreXTimes_L1, EEPromToServoParams, ETSP_L1, EEPromToSequencer, ServoParamsToEEProm
 		SPTE_L1, SequencerToEEProm, Cmd_SetWord7879, Cmd_SetAccel, Cmd_SetByte79, Cmd_SetServoEnable
@@ -5302,9 +5396,6 @@ RS232_Parse_Data_end ^	017D 	RS232_Parse_DALo_End
 RS232_Parse_Error ^	0198 	RS232_Parse_Sync2, RS232_Parse_Data_end
 RS232_Parse_L1 ^	018B 	RS232_Parse_L1
 RS232_Parse_Rtn ^	015C 	RS232_Parse_Byte, RS232_Parse_Sync2, RS232_Parse_SALo_end
-SimpleServo16PS.asm   X-Ref Table                                        Page: 53
-/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
-
 		RS232_Parse_DALo_End
 RS232_Parse_SALo ^	014C 	RS232_Parse_Sync2
 RS232_Parse_SALo_end ^	015E 	RS232_Parse_SALo
@@ -5313,6 +5404,9 @@ RS232_Send ^	01A7 	RS232_Send_S0
 RS232_Send_L1 ^	01B6 	RS232_Send_L1
 RS232_Send_S0 ^	0800 	Cmd_GetMode, Cmd_GetWord, Cmd_GetByte, Cmd_GetServoEnable, Cmd_GetServoEnable_1
 		Cmd_GetInPosition, Cmd_GetInPosition_1, Cmd_GetStatus, Cmd_SetMasterAddr, Cmd_SetSlaveAddr
+SimpleServo16PS.asm   X-Ref Table                                        Page: 54
+/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
+
 RS232_SlaveAddr	0039 	RS232_Parse_SALo_end, RS232_Send, Cmd_SetSlaveAddr
 RX_CSUM	00A3 	RS232_Parse_SALo, RS232_Parse_SALo_end, RS232_Parse_DALo_End, RS232_Parse_Data_end
 RX_Data	00AA 	RS232_Parse_Data_end, HandleRXData_1
@@ -5334,26 +5428,28 @@ RXSrcIsMaster	RX_Flags,2	RS232_Parse, RS232_Parse_SALo, RS232_Parse_L1
 RXTimeout	0005 	RS232_Parse_Byte
 SaveParams ^	005C 	Cmd_SaveParams, Cmd_SetMasterAddr, Cmd_SetSlaveAddr
 SaveParams_L1 ^	0061 	SaveParams_L1
-SaveSpeed ^	0348 	IdleServos_Accel_2
+SaveSpeed ^	034D 	IdleServos_Accel_2
 SendChar ^	1EFE 	BootLoaderStart, BLP_IHS_Length, BLP_IHS_CSum, BLPV_EndCmd, BLPV_Exit
 		SendChar
 SeqActive	0000 	IdleServos, DoSeqDone, DoSeqStopCmd, Cmd_SequencerStart
-SeqMov2FSR0 ^	04CA 	DoSeqMov2MaxCmd
-SeqReturn ^	046E 	DoSequenceCmd, DoSeqMov2, DoSeqCpByte, DoSeqWaitUntilCmd, DoSeqWaitInPosCmd
-		DoSeqStopCmd, DoSeqWaitForBtnCmd
-SequencerData	2200 	EEPromToSequencer, SequencerToEEProm, DoSequenceCmd, Cmd_SetSeqByte
+SeqMov2FSR0 ^	04FC 	DoSeqMov2MaxCmd
+SeqReturn ^	04A0 	DoSequenceCmd_1, DoSequenceCmd_1a, DoSequenceCmd_2, DoSequenceCmd_3
+		DoSequenceCmd_4, DoSeqMov2, DoSeqCpByte, DoSeqWaitUntilCmd, DoSeqWaitInPosCmd, DoSeqStopCmd
+		DoSeqWaitForBtnCmd
+SequencerData	2200 	EEPromToSequencer, SequencerToEEProm, DoSequenceCmd_4, Cmd_SetSeqByte
 		Cmd_GetSeqByte
-SequencerFlags	02E5 	IdleServos, DoSeqDone, DoSeqWaitUntilCmd, DoSeqWaitInPosCmd
+SequencerFlags	02E5 	IdleServos, DoSequenceCmd, DoSequenceCmd_1, DoSequenceCmd_1a
+		DoSequenceCmd_2, DoSequenceCmd_3, DoSeqDone, DoSeqWaitUntilCmd, DoSeqWaitInPosCmd
 		DoSeqStopCmd, DoSeqWaitForBtnCmd, Cmd_SequencerStart
-SequencerPtr	02E6 	DoSequenceCmd, DoSeqDone, DoSeqMoveCmd, DoSeqCpByte, DoSeqCpWord
-		DoSeqSetLoopTimeCmd, DoSeqWaitUntilCmd
-SequencerServoNum	02E7 	DoSeqWaitUntilCmd, DoSeqWaitInPosCmd
-SequencerTime	02E8 	DoSeqWaitUntilCmd
-SequencerToEEProm ^	0404 	Cmd_SaveSequencerData
-SeqWaitForBtn2	0004 	DoSeqWaitForBtnCmd
-SeqWaitForBtn3	0005 	DoSeqWaitForBtnCmd
-SeqWaitForInPos	0002 	DoSeqWaitInPosCmd
-SeqWaitForTimer	0001 	DoSeqWaitUntilCmd
+SequencerPtr	02E6 	DoSequenceCmd, DoSequenceCmd_4, DoSeqDone, DoSeqMoveCmd, DoSeqCpByte
+		DoSeqCpWord, DoSeqSetLoopTimeCmd, DoSeqWaitUntilCmd
+SequencerServoNum	02E7 	DoSequenceCmd, DoSequenceCmd_1, DoSeqWaitUntilCmd, DoSeqWaitInPosCmd
+SequencerTime	02E8 	DoSequenceCmd, DoSeqWaitUntilCmd
+SequencerToEEProm ^	0409 	Cmd_SaveSequencerData
+SeqWaitForBtn2	0004 	DoSequenceCmd_2, DoSeqWaitForBtnCmd
+SeqWaitForBtn3	0005 	DoSequenceCmd_3, DoSeqWaitForBtnCmd
+SeqWaitForInPos	0002 	DoSequenceCmd_1, DoSequenceCmd_1a, DoSeqWaitInPosCmd
+SeqWaitForTimer	0001 	DoSequenceCmd, DoSeqWaitUntilCmd
 Ser_Buff_Bank	2	StoreSerIn, GetSerIn, FlushInBuff, GetSerInBytes, StoreSerOut, GetSerOut
 Ser_In_Buff	0126 	StoreSerIn, GetSerIn, StoreSerOut, GetSerOut
 Ser_In_Bytes	0120 	StoreSerIn, GetSerIn, FlushInBuff, GetSerInBytes
@@ -5370,20 +5466,21 @@ ServoCtlFlags	02E2 	ISR_ServoCCP1, IRQ_Servo1_PulseOrDwell, IRQ_Servo1_InAct, IR
 		IRQ_Servo_Next, ISR_ServoCCP2, IRQ_Servo2_PulseOrDwell, IRQ_Servo2_OL, StartServos
 ServoCurSpeed	2110 	SaveSpeed, GetSpeed, StartMotion, Cmd_GetCurSpeed
 ServoFlags	2180 	IRQ_Servo1_PulseOrDwell, IRQ_Servo_Next, IRQ_Servo2_PulseOrDwell
-		SetFSR0ToServoFlags, StartMotion, Cmd_SetServoEnable, Cmd_GetServoEnable, Cmd_GetInPosition
+		SetFSR0ToServoFlags, StartMotion, DoSequenceCmd_1, Cmd_SetServoEnable, Cmd_GetServoEnable
+		Cmd_GetInPosition
 ServoFlags2	2188 	SetFSR0ToServoFlags2, StartMotion
 ServoIDX	02E1 	IRQ_Servo1_PulseOrDwell, IRQ_Servo1_OL, IRQ_Servo_Next, IRQ_Servo2_PulseOrDwell
 		IRQ_Servo2_OL
-ServoInit16 ^	038A 	start
+ServoInit16 ^	038F 	start
 ServoMaxSpeed	20F0 	GetMaxSpeed, ServoInit16, EEPromToServoParams, ServoParamsToEEProm
 		DoSeqSetSpeedCmd, Cmd_SetMaxSpeed, Cmd_GetMaxSpeed
 ServoOnBit0_7	0002 	IRQ_Servo1_PulseOrDwell, IRQ_Servo_Next, IdleServos, StartMotion
 		Cmd_SetServoEnable, Cmd_SetServoEnable_1, Cmd_GetServoEnable
 ServoOnBit8_15	0006 	IRQ_Servo_Next, IRQ_Servo2_PulseOrDwell, IdleServos8_15, StartMotion
 		Cmd_SetServoEnable, Cmd_SetServoEnable_1, Cmd_GetServoEnable_1
-ServoParamsToEEProm ^	03ED 	Cmd_SaveParams
-SetFSR0ToServoFlags ^	0371 	IdleServos, IdleServos_Update, IdleServos_InPos
-SetFSR0ToServoFlags2 ^	0369 	IdleServos_Accel, AccelDone
+ServoParamsToEEProm ^	03F2 	Cmd_SaveParams
+SetFSR0ToServoFlags ^	0376 	IdleServos, IdleServos_Update, IdleServos_InPos
+SetFSR0ToServoFlags2 ^	036E 	IdleServos_Accel, AccelDone
 SigOutTime	2190 	IRQ_Servo1_PulseOrDwell, IRQ_Servo2_PulseOrDwell, IdleServos_Update
 		IdleServos_DisInt, ServoInit16, Cmd_GetCurPos
 SourceAddHiRXd	RX_ParseFlags,3	RS232_Parse
@@ -5391,12 +5488,12 @@ SourceAddLoRXd	RX_ParseFlags,2	RS232_Parse, RS232_Parse_SALo
 SourceBuffer	2100 	BootLoaderStart, BIHD_PutInBuff_E2, BLP_WriteBuffer, FSR1_SourceBuffer
 SPBRGH	019C 	InitializeIO, InitializeBLIO
 SPBRGL	019B 	InitializeIO, InitializeBLIO
-SPTE_L1 ^	03FD 	ServoParamsToEEProm, SPTE_L1, SequencerToEEProm
+SPTE_L1 ^	0402 	ServoParamsToEEProm, SPTE_L1, SequencerToEEProm
 ssRX_Timeout	ssStatus,3	RS232_Parse, Cmd_GetStatus
-ssStatus	0031 	RS232_Parse, Cmd_GetStatus
+ssStatus	0031 	RS232_Parse, IdleServos, Cmd_GetStatus
 start ^	01BE 	ProgStartVector, ML_Ser_End
-StartMotion ^	040E 	DoSeqMov2, Cmd_SetCmdPos
-StartServos ^	0379 	start
+StartMotion ^	0413 	DoSeqMov2, Cmd_SetCmdPos
+StartServos ^	037E 	start
 STATUS	0003 	CopyToRam_L1, SaveParams_L1, DecTimer, RX_TheByte, GetSerIn, StoreSerOut
 		GetSerOut, RS232_Parse, RS232_Parse_Byte, RS232_Parse_Sync2, RS232_Parse_SALo, RS232_Parse_SALo_end
 		RS232_Parse_DALo_End, RS232_Parse_Data_end, MainLoop, IdleServos_Update, IdleServos_L1
@@ -5404,29 +5501,30 @@ STATUS	0003 	CopyToRam_L1, SaveParams_L1, DecTimer, RX_TheByte, GetSerIn, StoreS
 		DoSeqStopCmd, DoSeqWaitForBtnCmd, ClampInt_1, ClampInt_tooHigh, ClampMinMax_1, HandleRXData_1
 		Dispatcher_1, Dispatcher_2, Dispatcher_3, Dispatcher_4, Dispatcher_5, Cmd_SetMode
 		Cmd_SendIDString_L1, BootLoaderStart, BLP_L2, BLP_TestNum, BLP_IHS_Length, BLP_IHS_DataType
-SimpleServo16PS.asm   X-Ref Table                                        Page: 54
-/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
-
 		BLP_IHS_Data, BLP_IHS_CSum, BLP_Validate, BufferIHData, BIHD_PutInBuff_L1, GetChar
 		TestErased_L1, CompareBlock_L1, CB_NotBlank, WriteProgBlock_L1
-Store16Times ^	03C2 	ServoInit16
-Store8Times ^	03CA 	ServoInit16
+Store16Times ^	03C7 	ServoInit16
+Store8Times ^	03CF 	ServoInit16
 StoreSerIn ^	00D6 	ML_1
+SimpleServo16PS.asm   X-Ref Table                                        Page: 55
+/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
+
 StoreSerOut ^	0103 	RS232_Send, RS232_Send_L1, StoreSerOut_S0
 StoreSerOut_S0 ^	09C6 	Cmd_SendIDString_L1
-StoreWord16Times ^	03B9 	ServoInit16
-StoreWord16Times_L1 ^	03BB 	StoreWord16Times_L1
-StoreXTimes ^	03C4 	Store8Times
-StoreXTimes_L1 ^	03C6 	StoreXTimes_L1
+StoreWord16Times ^	03BE 	ServoInit16
+StoreWord16Times_L1 ^	03C0 	StoreWord16Times_L1
+StoreXTimes ^	03C9 	Store8Times
+StoreXTimes_L1 ^	03CB 	StoreXTimes_L1
 SW1_Flag	SysFlags,0	ProgStartVector, ML_Ser_End
 SW1_In	PORTB,0	ProgStartVector
-SW2_Flag	SysFlags,1	ProgStartVector
+SW2_Flag	SysFlags,1	ProgStartVector, DoSequenceCmd_2
 SW2_In	PORTB,4	ProgStartVector
-SW3_Flag	SysFlags,2	ProgStartVector
+SW3_Flag	SysFlags,2	ProgStartVector, DoSequenceCmd_3
 SW3_In	PORTB,5	ProgStartVector
 SyncByte1RXd	RX_ParseFlags,0	RS232_Parse, RS232_Parse_Byte
 SyncByte2RXd	RX_ParseFlags,1	RS232_Parse, RS232_Parse_Sync2
-SysFlags	003B 	ProgStartVector, CopyToRam_L1, SaveParams_L1, ML_Ser_End
+SysFlags	003B 	ProgStartVector, CopyToRam_L1, SaveParams_L1, ML_Ser_End, DoSequenceCmd_2
+		DoSequenceCmd_3
 SysLED_Count	0023 	ProgStartVector, InitializeIO
 SysLED_Time	0020 	ProgStartVector, InitializeIO
 SysMode	0037 	CopyToRam, SaveParams, DoSeqDone, DoSeqStopCmd, Cmd_SetMode, Cmd_GetMode
@@ -5440,8 +5538,8 @@ TestErased ^	1F1F 	BLP_WriteBuffer
 TestErased_L1 ^	1F21 	TestErased_L1
 Timer1Hi	0027 	DecTimer1, DecTimer
 Timer1Lo	0026 	DecTimer, RS232_Parse, RS232_Parse_Byte
-Timer2Hi	0029 	DecTimer2, DecTimer, DoSeqSetLoopTimeCmd
-Timer2Lo	0028 	DecTimer, DoSeqSetLoopTimeCmd
+Timer2Hi	0029 	DecTimer2, DecTimer, DoSequenceCmd, DoSeqSetLoopTimeCmd
+Timer2Lo	0028 	DecTimer, DoSequenceCmd, DoSeqSetLoopTimeCmd
 Timer3Hi	002B 	DecTimer3, DecTimer
 Timer3Lo	002A 	DecTimer
 Timer4Hi	002D 	DecTimer4, DecTimer
@@ -5475,23 +5573,23 @@ W	0000 	ProgStartVector, CopyToRam_L1, SaveParams_L1, DecTimer, EERead, EEWrite,
 		RX_TheByte, RX_TheByte_Err, StoreSerIn, GetSerIn, GetSerInBytes, StoreSerOut, GetSerOut
 		RS232_Parse_Byte, RS232_Parse_Sync2, RS232_Parse_SALo, RS232_Parse_SALo_end, RS232_Parse_DALo_End
 		RS232_Parse_Data_end, RS232_Send, RS232_Send_L1, ML_1, IRQ_Servo1_PulseOrDwell
-		IRQ_Servo1_OL, IRQ_Servo_Next, IRQ_Servo2_PulseOrDwell, IRQ_Servo2_OL, IdleServos_Update
-		IdleServos_L1, IdleServos_Minus, IdleServos_Clamp, IdleServos_DisInt, IdleServos_L2
-		IdleServos_Plus, IdleServos_Next, IdleServos_Accel_2, SaveSpeed, GetSpeed, GetMaxSpeed
-		GetAccelValue, SetFSR0ToServoFlags2, SetFSR0ToServoFlags, StoreWord16Times_L1, StoreXTimes
-		StartMotion, DoSequenceCmd, DoSeqMov2, DoSeqSetSpeedCmd, DoSeqSetAccelCmd, DoSeqSetMinCmd
-		DoSeqSetMaxCmd, DoSeqSetLoopTimeCmd, DoSeqWaitUntilCmd, DoSeqMov2MinCmd, DoSeqMov2MaxCmd
-		DoSeqWaitInPosCmd, DoSeqWaitForBtnCmd, ClampInt_1, ClampInt_tooHigh, ClampMinMax_1
-		ClampMinMax_too, HandleRXData_1, Dispatcher_1, Dispatcher_2, Dispatcher_3, Dispatcher_4
-		Dispatcher_5, Cmd_SetMode, Cmd_GetMode, Cmd_SetCmdPos, Cmd_SetWord7879, Cmd_GetCmdPos
-		Cmd_SetAccel, Cmd_SetByte79, Cmd_GetAccel, Cmd_SetServoEnable, Cmd_SetMaxSpeed
-		Cmd_GetMaxSpeed, Cmd_SetMin_uS, Cmd_GetMin_uS, Cmd_SetMax_uS, Cmd_GetMax_uS, Cmd_SetSeqByte
-		Cmd_GetSeqByte, Cmd_GetCurSpeed, Cmd_GetCurPos, Cmd_GetStatus, Cmd_SendIDString_L1
-		BLP_L2, BLP_TestNum, BLP_TestNum_1, BLP_TestNum_2, BLP_IHS_Length, BLP_SaveIH_Length
-		BLP_IHS_AddrMSB, BLP_IHS_AddrLSB, BLP_IHS_DataType, BLP_IHS_Data, BLP_IHS_CSum
-		BLP_Validate, BufferIHData, BIHD_PutInBuff, BIHD_PutInBuff_E2, BIHD_PutInBuff_L1
-		GetChar, GetChar_Err, ReadEEData, CompareBlock_L1, CB_NotBlank, ReadProgBlock_L1
-		LoadProgAddr, WriteProgBlock_L1
+		IRQ_Servo1_OL, IRQ_Servo_Next, IRQ_Servo2_PulseOrDwell, IRQ_Servo2_OL, IdleServos
+		IdleServos_Update, IdleServos_L1, IdleServos_Minus, IdleServos_Clamp, IdleServos_DisInt
+		IdleServos_L2, IdleServos_Plus, IdleServos_Next, IdleServos_Accel_2, SaveSpeed
+		GetSpeed, GetMaxSpeed, GetAccelValue, SetFSR0ToServoFlags2, SetFSR0ToServoFlags
+		StoreWord16Times_L1, StoreXTimes, StartMotion, DoSequenceCmd, DoSequenceCmd_1, DoSequenceCmd_4
+		DoSeqMov2, DoSeqSetSpeedCmd, DoSeqSetAccelCmd, DoSeqSetMinCmd, DoSeqSetMaxCmd, DoSeqSetLoopTimeCmd
+		DoSeqWaitUntilCmd, DoSeqMov2MinCmd, DoSeqMov2MaxCmd, DoSeqWaitInPosCmd, DoSeqWaitForBtnCmd
+		ClampInt_1, ClampInt_tooHigh, ClampMinMax_1, ClampMinMax_too, HandleRXData_1, Dispatcher_1
+		Dispatcher_2, Dispatcher_3, Dispatcher_4, Dispatcher_5, Cmd_SetMode, Cmd_GetMode
+		Cmd_SetCmdPos, Cmd_SetWord7879, Cmd_GetCmdPos, Cmd_SetAccel, Cmd_SetByte79, Cmd_GetAccel
+		Cmd_SetServoEnable, Cmd_SetMaxSpeed, Cmd_GetMaxSpeed, Cmd_SetMin_uS, Cmd_GetMin_uS
+		Cmd_SetMax_uS, Cmd_GetMax_uS, Cmd_SetSeqByte, Cmd_GetSeqByte, Cmd_GetCurSpeed, Cmd_GetCurPos
+		Cmd_GetStatus, Cmd_SendIDString_L1, BLP_L2, BLP_TestNum, BLP_TestNum_1, BLP_TestNum_2
+		BLP_IHS_Length, BLP_SaveIH_Length, BLP_IHS_AddrMSB, BLP_IHS_AddrLSB, BLP_IHS_DataType
+		BLP_IHS_Data, BLP_IHS_CSum, BLP_Validate, BufferIHData, BIHD_PutInBuff, BIHD_PutInBuff_E2
+		BIHD_PutInBuff_L1, GetChar, GetChar_Err, ReadEEData, CompareBlock_L1, CB_NotBlank
+		ReadProgBlock_L1, LoadProgAddr, WriteProgBlock_L1
 WDTCON	0097 	InitializeIO, InitializeBLIO
 WPUA	020C 	InitializeIO, InitializeBLIO
 WPUA5	0005 	InitializeIO, InitializeBLIO
@@ -5506,13 +5604,13 @@ WriteProgBlock ^	1F7A 	BLP_WriteBuffer
 WriteProgBlock_L1 ^	1F81 	WriteProgBlock_L1
 WriteProgBlock_Wr ^	1F93 	WriteProgBlock_L1
 Z	0002 	CopyToRam_L1, SaveParams_L1, DecTimer, RX_TheByte, GetSerIn, StoreSerOut
-SimpleServo16PS.asm   X-Ref Table                                        Page: 55
-/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
-
 		GetSerOut, RS232_Parse, RS232_Parse_Byte, RS232_Parse_Sync2, RS232_Parse_SALo, RS232_Parse_SALo_end
 		RS232_Parse_DALo_End, RS232_Parse_Data_end, MainLoop, IdleServos_Update, IdleServos_MovPlus
 		IdleServos_Accel_2, DoSeqDone, DoSeqStopCmd, DoSeqWaitForBtnCmd, ClampInt_1, ClampInt_tooHigh
 		ClampMinMax_1, HandleRXData_1, Dispatcher_1, Dispatcher_2, Dispatcher_3, Dispatcher_4
+SimpleServo16PS.asm   X-Ref Table                                        Page: 56
+/Users/davidflynn/Projects/SimpleServoCtrl16/FirmwarePS/
+
 		Dispatcher_5, Cmd_SendIDString_L1, BootLoaderStart, BLP_L2, BLP_TestNum, BLP_IHS_DataType
 		BLP_IHS_Data, BLP_IHS_CSum, BLP_Validate, BufferIHData, BIHD_PutInBuff_L1, GetChar
 		TestErased_L1, CompareBlock_L1, CB_NotBlank, WriteProgBlock_L1
@@ -5520,8 +5618,8 @@ Z	0002 	CopyToRam_L1, SaveParams_L1, DecTimer, RX_TheByte, GetSerIn, StoreSerOut
 
 X-Ref Table (The UnCalled)
 BootLoader !	1E00 	
-ClampInt !	04ED 	
-ClampMinMax !	050E 	
+ClampInt !	051F 	
+ClampMinMax !	0540 	
 Delay100uS !	0090 	
 Delay10uS !	008E 	
 Delay40uS !	0092 	
@@ -5561,7 +5659,8 @@ Memory Usage Map ('X' = Used, '-' = Unused)
 0440  : XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX
 0480  : XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX
 04C0  : XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX
-0500  : XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXX---------
+0500  : XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX
+0540  : XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXXXX------- ----------------
 0800  : XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX
 0840  : XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX
 0880  : XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX
@@ -5580,8 +5679,8 @@ Memory Usage Map ('X' = Used, '-' = Unused)
 1F80  : XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXX
 1FC0  : XXXXXXXX-------- ---------------- ---------------- ----------------
  
-Program Memory Words Used:2324
-Program Memory Words Free:5868
+Program Memory Words Used:2374
+Program Memory Words Free:5818
  
 UserID
 8000  :XXXX

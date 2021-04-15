@@ -320,10 +320,16 @@ IRQ_Servo2_End	RETURN
 ; Servo motion control
 ; Call from main loop
 ;
-IdleServos	MOVLB	0x05	; bank 5
+IdleServos	movlb	0x05	;Bank 5
+; Copy sequencer flags to ssStatus+2
+	movf	SequencerFlags,W
+	movlb	0	;Bank 0
+	movwf	ssStatus+2
+	movlb	0x05	;Bank 5
 	BTFSC	SequencerFlags,SeqActive
 	call	DoSequenceCmd
 ;
+	movlb	0x05	;Bank 5
 	CALL	SetFSR0ToServoFlags
 	BTFSC	CMDServoIDX,3
 	GOTO	IdleServos8_15
@@ -860,13 +866,63 @@ DoSequenceCmd	movlb	5	;Bank 5
 	bra	DoSeqDone	; No, Sequencer is past end
 ;
 ; Handle Wait states now
+;----------------------
 ;SeqWaitForTimer
+	btfss	SequencerFlags,SeqWaitForTimer
+	bra	DoSequenceCmd_1
+	movf	SequencerTime,W
+	movwf	Param78	;MSB of time
+	movf	SequencerServoNum,W	;LSB of time
+	movlb	0	;Bank 0
+	subwf	Timer2Lo,W
+	movf	Param78,W
+	subwfb	Timer2Hi,W	;W=Timer2-SequencerTime
+	SKPNB		;SequencerTime>Timer2?
+	bcf	SequencerFlags,SeqWaitForTimer  ; Yes
+	return	
+;	
+;----------------------
 ;SeqWaitForInPos
+DoSequenceCmd_1	btfss	SequencerFlags,SeqWaitForInPos
+	bra	DoSequenceCmd_2
+	movf	SequencerServoNum,W
+	ANDLW	0x07
+	LOADFSR0W	ServoFlags
+	btfss	SequencerServoNum,3
+	bra	DoSequenceCmd_1a
+;
+	btfsc	INDF0,InPositionFlag8_15
+	bcf	SequencerFlags,SeqWaitForInPos
+	bra	SeqReturn
+;
+DoSequenceCmd_1a	btfsc	INDF0,InPositionFlag0_7
+	bcf	SequencerFlags,SeqWaitForInPos
+	bra	SeqReturn
+;	
+;----------------------
 ;SeqWaitForBtn2
+DoSequenceCmd_2	btfss	SequencerFlags,SeqWaitForBtn2
+	bra	DoSequenceCmd_3
+	movlb	0	;Bank 0
+	btfss	SW2_Flag
+	return
+	movlb	5	;Bank 5
+	bcf	SequencerFlags,SeqWaitForBtn2
+	bra	SeqReturn
+;----------------------
 ;SeqWaitForBtn3
+DoSequenceCmd_3	btfss	SequencerFlags,SeqWaitForBtn3
+	bra	DoSequenceCmd_4
+	movlb	0	;Bank 0
+	btfss	SW3_Flag
+	return
+	movlb	5	;Bank 5
+	bcf	SequencerFlags,SeqWaitForBtn3
+	bra	SeqReturn
+;----------------------
 ;
 ;
-	movf	SequencerPtr,W
+DoSequenceCmd_4	movf	SequencerPtr,W
 	LOADFSR0W	SequencerData
 	incf	SequencerPtr,F
 	moviw	FSR0++

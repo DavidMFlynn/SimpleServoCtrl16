@@ -49,6 +49,16 @@ kSeqCmd_WaitInPos	EQU	0xB0	;+ServoNum
 kSeqCmd_Stop	EQU	0xC0	;+Flags?  Mode=0 only
 kSeqCmd_WaitForBtn	EQU	0xD0	;+Btn#, 2 or 3 only, 1=Btn 2, 2=Btn 3, 3=both
 ;
+; Sample Sequence
+;	de	kSeqCmd_Mov2Min	;Servo 0 to min
+;	de	kSeqCmd_WaitInPos	;wait for servo 0 to finish
+;	de	kSeqCmd_Mov2Max+1	;Servo 1 to max
+;	de	kSeqCmd_WaitInPos+1	;wait for servo 1 to finish
+;	de	kSeqCmd_Mov2Max	;Servo 0 to max
+;	de	kSeqCmd_WaitInPos	;wait for servo 0 to finish
+;	de	kSeqCmd_Mov2Min+1	;Servo 1 to min
+;
+;	de	kSeqCmd_End
 ;
 ;====================================================================================================
 ;====================================================================================================

@@ -112,7 +112,7 @@ kRS232SyncByteValue	EQU	0xDD
 kRS232_MasterAddr	EQU	0x01	;Master's Address
 kRS232_SlaveAddr	EQU	0x02	;This Slave's Address
 kSysMode	EQU	.0	;Default Mode
-kMaxMode	EQU	.0	;Last mode
+kMaxMode	EQU	.1	;Last mode
 kssFlags	EQU	.0
 ;
 #Define	_C	STATUS,C
@@ -363,7 +363,15 @@ HasISR	EQU	0x80	;used to enable interupts 0x80=true 0x00=false
 	de	0x0F:20	;nvMaxTime 0x0F0F = .3854 = 1927uS
 	de	DefaultSFlags:8	;nvServoFlags
 ;
-	de	0x00:kSeqMemSize
+	de	kSeqCmd_Mov2Min	;Servo 0 to min
+	de	kSeqCmd_WaitInPos	;wait for servo 0 to finish
+	de	kSeqCmd_Mov2Max+1	;Servo 1 to max
+	de	kSeqCmd_WaitInPos+1	;wait for servo 1 to finish
+	de	kSeqCmd_Mov2Max	;Servo 0 to max
+	de	kSeqCmd_WaitInPos	;wait for servo 0 to finish
+	de	kSeqCmd_Mov2Min+1	;Servo 1 to min
+;
+	de	0x00:kSeqMemSize-7
 ;
 	ORG	0xF0FF
 	de	0x00	;Skip BootLoader
